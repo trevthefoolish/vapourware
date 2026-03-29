@@ -2,15 +2,22 @@
 
 :root { --bg: #e9e9eb; --text: #1b1212; --text-muted: rgba(27,18,18,0.5); }
 
-html { -webkit-text-size-adjust: none; -webkit-font-smoothing: antialiased; }
+html {
+  -webkit-text-size-adjust: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
 
 body {
   background: var(--bg); color: var(--text);
   font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 14px; line-height: 20px; font-weight: 400;
   height: 100dvh; overflow: hidden;
+  overscroll-behavior: none;
 }
 
+/* DESKTOP */
 .desktop-message { display: none; }
 @media (min-width: 480px) {
   .desktop-message {
@@ -61,17 +68,27 @@ body {
 .reading-view { flex: 1; overflow: hidden; }
 .swipe-container { height: 100%; overflow: hidden; }
 .swipe-track {
-  display: flex; height: 100%; width: 300%; will-change: transform;
+  display: flex; height: 100%; width: 300%;
+  will-change: transform;
   transform: translateX(-33.333%);
+  backface-visibility: hidden;
 }
-.ch-panel { width: 33.333%; height: 100%; overflow: hidden; flex-shrink: 0; }
+.ch-panel {
+  width: 33.333%; height: 100%; overflow: hidden; flex-shrink: 0;
+  transform: translateZ(0);
+}
 .chapter-scroll {
   height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   display: flex; flex-direction: column; align-items: center;
 }
 .chapter-scroll > .verse, .chapter-scroll > .bottom-spacer { width: 260px; }
-.verse { font-size: 16px; line-height: 24px; padding-bottom: 28px; }
-.bottom-spacer { height: 60px; flex-shrink: 0; }
+.verse {
+  font-size: 16px; line-height: 26px;
+  letter-spacing: 0.006em;
+  padding-bottom: 24px;
+}
+.bottom-spacer { height: 80px; flex-shrink: 0; }
 
 /* LOADING */
 .loading {
@@ -79,22 +96,14 @@ body {
   font-size: 14px; color: var(--text-muted); letter-spacing: 0.2em;
 }
 
-/* NAV — same bg, same column, just a list */
+/* NAV */
 .nav-view {
   display: none; flex: 1; overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
-.nav-scroll {
-  display: flex; justify-content: center;
-}
+.nav-scroll { display: flex; justify-content: center; }
 .nav-inner { width: 260px; padding-bottom: 80px; }
-.nav-label {
-  font-size: 10px; line-height: 15px; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--text-muted);
-  padding: 20px 0 12px 0;
-}
-.nav-label:first-child { padding-top: 0; }
-
 .nav-book {
   font-size: 14px; line-height: 20px; padding: 10px 0;
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;

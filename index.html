@@ -27,7 +27,11 @@
 
     <div class="reading-view" id="readingView">
       <div class="swipe-container" id="swipeContainer">
-        <div class="swipe-track" id="swipeTrack"></div>
+        <div class="swipe-track" id="swipeTrack">
+          <div class="ch-panel" id="p0"><div class="chapter-scroll"></div></div>
+          <div class="ch-panel" id="p1"><div class="chapter-scroll"></div></div>
+          <div class="ch-panel" id="p2"><div class="chapter-scroll"></div></div>
+        </div>
       </div>
     </div>
 
@@ -59,6 +63,7 @@
       150,31,12,8,66,52,5,48,12,14,3,9,1,4,7,3,3,3,2,14,4,
       28,16,24,21,28,16,16,13,6,6,4,4,5,3,6,4,3,1,13,5,5,3,5,1,1,1,22];
 
+    // Flat chapter index
     const ALL = [];
     CHS.forEach((n, bi) => { for (let c = 0; c < n; c++) ALL.push({ bi, ch: c }); });
     const TOTAL = ALL.length;
@@ -67,6 +72,9 @@
     let navOpen = false;
     let sliding = false;
 
+    // Book cache — each book fetched once, stays in memory
+    const bookCache = {};
+
     const track = document.getElementById('swipeTrack');
     const container = document.getElementById('swipeContainer');
     const headerTitle = document.getElementById('headerTitle');
@@ -74,31 +82,40 @@
     const navView = document.getElementById('navView');
     const navInner = document.getElementById('navInner');
     const loadingEl = document.getElementById('loading');
+    const panels = [document.getElementById('p0'), document.getElementById('p1'), document.getElementById('p2')];
 
     function lbl(p) { const e = ALL[p]; return NAMES[e.bi].toUpperCase() + ' ' + (e.ch + 1); }
     function updateLabel() { const t = lbl(pos); headerTitle.textContent = t; document.title = t; }
 
-    // LOAD BOOK
+    // ===== BOOK LOADING =====
     async function loadBook(bi) {
+      if (bookCache[bi]) return bookCache[bi];
       const res = await fetch('./books/' + bi + '.json');
-      return await res.json();
+      const data = await res.json();
+      bookCache[bi] = data;
+      return data;
     }
 
-    async function getVerses(p) {
+    function getVerses(p) {
       if (p < 0 || p >= TOTAL) return null;
       const e = ALL[p];
-      const book = await loadBook(e.bi);
-      return book[e.ch];
+      const book = bookCache[e.bi];
+      return book ? book[e.ch] : null;
     }
 
-    // NAV
+    // Prefetch a book if not cached
+    function prefetchBook(bi) {
+      if (bi >= 0 && bi < 66 && !bookCache[bi]) {
+        loadBook(bi);
+      }
+    }
+
+    // ===== NAV =====
     function buildNavOnce() {
-      let html = '<div class="nav-label">Old Testament</div>';
+      let html = '';
       NAMES.forEach((name, bi) => {
-        if (bi === 39) html += '<div class="nav-label">New Testament</div>';
         html += '<div class="nav-book" id="nb-' + bi + '" data-bi="' + bi + '">' + name + '</div>';
       });
-      html += '<div class="nav-end"></div>';
       navInner.innerHTML = html;
       navInner.addEventListener('click', function(e) {
         const el = e.target.closest('.nav-book');
@@ -108,7 +125,7 @@
         navOpen = false;
         navView.style.display = 'none';
         readingView.style.display = 'block';
-        if (np >= 0 && np !== pos) { pos = np; render(); }
+        if (np >= 0 && np !== pos) { pos = np; jumpTo(); }
       });
     }
 
@@ -133,35 +150,54 @@
       }
     }
 
-    // RENDER
-    function panelHTML(verses) {
-      if (!verses) return '<div class="chapter-scroll"></div>';
+    // ===== PANEL RENDERING =====
+    function fillPanel(panel, verses) {
+      if (!verses) { panel.innerHTML = '<div class="chapter-scroll"></div>'; return; }
       let h = '<div class="chapter-scroll">';
       for (let i = 0; i < verses.length; i++) h += '<p class="verse">' + verses[i] + '</p>';
       h += '<div class="bottom-spacer"></div></div>';
-      return h;
+      panel.innerHTML = h;
     }
 
-    async function render() {
-      const cur = await getVerses(pos);
-      track.innerHTML =
-        '<div class="ch-panel" data-slot="0"><div class="chapter-scroll"></div></div>' +
-        '<div class="ch-panel" data-slot="1">' + panelHTML(cur) + '</div>' +
-        '<div class="ch-panel" data-slot="2"><div class="chapter-scroll"></div></div>';
+    function fillAllPanels() {
+      fillPanel(panels[0], getVerses(pos - 1));
+      fillPanel(panels[1], getVerses(pos));
+      fillPanel(panels[2], getVerses(pos + 1));
       track.style.transition = 'none';
       track.style.transform = 'translateX(-33.333%)';
       updateLabel();
-      loadNeighbors();
+      prefetchNeighborBooks();
     }
 
-    async function loadNeighbors() {
-      const [prev, next] = await Promise.all([getVerses(pos - 1), getVerses(pos + 1)]);
-      const el0 = track.querySelector('[data-slot="0"]');
-      const el2 = track.querySelector('[data-slot="2"]');
-      if (el0) el0.innerHTML = panelHTML(prev);
-      if (el2) el2.innerHTML = panelHTML(next);
+    function prefetchNeighborBooks() {
+      const cur = ALL[pos];
+      // Prefetch the book before and after current
+      if (cur.bi > 0) prefetchBook(cur.bi - 1);
+      if (cur.bi < 65) prefetchBook(cur.bi + 1);
+      // If near a book boundary, also prefetch the next-next
+      if (cur.ch <= 1 && cur.bi > 1) prefetchBook(cur.bi - 2);
+      if (cur.ch >= CHS[cur.bi] - 2 && cur.bi < 64) prefetchBook(cur.bi + 2);
     }
 
+    // ===== JUMP (from nav, may need to fetch) =====
+    async function jumpTo() {
+      const e = ALL[pos];
+      if (!bookCache[e.bi]) {
+        loadingEl.style.display = 'flex';
+        readingView.style.display = 'none';
+        await loadBook(e.bi);
+        loadingEl.style.display = 'none';
+        readingView.style.display = 'block';
+      }
+      // Also eagerly load neighbors
+      const prevE = pos > 0 ? ALL[pos - 1] : null;
+      const nextE = pos < TOTAL - 1 ? ALL[pos + 1] : null;
+      if (prevE && !bookCache[prevE.bi]) loadBook(prevE.bi);
+      if (nextE && !bookCache[nextE.bi]) loadBook(nextE.bi);
+      fillAllPanels();
+    }
+
+    // ===== SLIDE =====
     async function slideTo(dir) {
       if (sliding) return;
       const np = pos + dir;
@@ -170,58 +206,82 @@
         track.style.transform = 'translateX(-33.333%)';
         return;
       }
+
       sliding = true;
+
+      // If the next chapter's book isn't loaded yet, load it before animating
+      const nextE = ALL[np];
+      if (!bookCache[nextE.bi]) await loadBook(nextE.bi);
+
+      // Animate slide
       track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
       track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
 
-      // While animating, prefetch the new neighbors
-      pos = np;
-      updateLabel();
-      const [newCur, newPrev, newNext] = await Promise.all([
-        getVerses(pos),
-        getVerses(pos - 1),
-        getVerses(pos + 1),
-        new Promise(r => setTimeout(r, 310)) // wait for animation
-      ]);
+      // Wait for animation to finish
+      await new Promise(r => setTimeout(r, 310));
 
-      // Rebuild without visible flash — content is already fetched
-      track.innerHTML =
-        '<div class="ch-panel" data-slot="0">' + panelHTML(newPrev) + '</div>' +
-        '<div class="ch-panel" data-slot="1">' + panelHTML(newCur) + '</div>' +
-        '<div class="ch-panel" data-slot="2">' + panelHTML(newNext) + '</div>';
-      track.style.transition = 'none';
-      track.style.transform = 'translateX(-33.333%)';
-      sliding = false;
+      pos = np;
+
+      // Ensure the new neighbor's book is available
+      const farE = dir === 1
+        ? (pos + 1 < TOTAL ? ALL[pos + 1] : null)
+        : (pos - 1 >= 0 ? ALL[pos - 1] : null);
+      if (farE && !bookCache[farE.bi]) await loadBook(farE.bi);
+
+      // Swap panels in place — no flash
+      requestAnimationFrame(() => {
+        fillAllPanels();
+        sliding = false;
+      });
     }
 
-    // SWIPE
-    let sx=0,sy=0,dx=0,drag=false,horiz=null;
+    // ===== SWIPE =====
+    let sx = 0, sy = 0, dx = 0, drag = false, horiz = null;
+
     container.addEventListener('touchstart', e => {
-      if (navOpen||sliding) return;
-      sx=e.touches[0].clientX;sy=e.touches[0].clientY;
-      dx=0;drag=true;horiz=null;track.style.transition='none';
-    }, {passive:true});
+      if (navOpen || sliding) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+      dx = 0; drag = true; horiz = null;
+      track.style.transition = 'none';
+    }, { passive: true });
+
     container.addEventListener('touchmove', e => {
-      if (!drag||navOpen||sliding) return;
-      const mx=e.touches[0].clientX-sx,my=e.touches[0].clientY-sy;
-      if (horiz===null&&(Math.abs(mx)>8||Math.abs(my)>8)) horiz=Math.abs(mx)>Math.abs(my);
-      if (horiz===false){drag=false;return;}
-      if (horiz){e.preventDefault();dx=mx;
-        track.style.transform='translateX('+(-33.333+dx/container.offsetWidth*33.333)+'%)';}
-    }, {passive:false});
+      if (!drag || navOpen || sliding) return;
+      const mx = e.touches[0].clientX - sx, my = e.touches[0].clientY - sy;
+      if (horiz === null && (Math.abs(mx) > 6 || Math.abs(my) > 6)) {
+        horiz = Math.abs(mx) > Math.abs(my);
+      }
+      if (horiz === false) { drag = false; return; }
+      if (horiz) {
+        e.preventDefault();
+        dx = mx;
+        track.style.transform = 'translateX(' + (-33.333 + dx / container.offsetWidth * 33.333) + '%)';
+      }
+    }, { passive: false });
+
     container.addEventListener('touchend', () => {
-      if (!drag||!horiz){drag=false;return;}
-      drag=false;const thr=container.offsetWidth*0.2;
-      if (dx<-thr) slideTo(1);
-      else if (dx>thr) slideTo(-1);
-      else {track.style.transition='transform 0.3s cubic-bezier(0.16,1,0.3,1)';
-        track.style.transform='translateX(-33.333%)';}
+      if (!drag || !horiz) { drag = false; return; }
+      drag = false;
+      const thr = container.offsetWidth * 0.15;
+      if (dx < -thr) slideTo(1);
+      else if (dx > thr) slideTo(-1);
+      else {
+        track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
+        track.style.transform = 'translateX(-33.333%)';
+      }
     });
 
-    // INIT
+    // ===== INIT =====
     (async () => {
       buildNavOnce();
-      await render();
+      // Load current book + neighbors
+      const cur = ALL[pos];
+      await loadBook(cur.bi);
+      const prevE = pos > 0 ? ALL[pos - 1] : null;
+      const nextE = pos < TOTAL - 1 ? ALL[pos + 1] : null;
+      if (prevE) loadBook(prevE.bi);
+      if (nextE) loadBook(nextE.bi);
+      fillAllPanels();
       loadingEl.style.display = 'none';
       readingView.style.display = 'block';
     })();
