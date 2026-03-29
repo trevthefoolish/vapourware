@@ -179,6 +179,49 @@ Express with `compression` middleware. Static file serving. The `compression` mi
 
 ---
 
+## AI Verse Insights
+
+Tap any verse to reveal a one-sentence insight below it in muted text. Tap again to collapse. Same expand/collapse pattern yews.news used for article summaries under headlines.
+
+### Voice
+
+Like a friend who studied theology for 20 years leaning over and saying something that changes everything. Not a textbook footnote. Not a dictionary definition. A revelation — the kind of thing a scholar would whisper in the margin.
+
+Inspired by yews.news calling their content "memos": "We distill the news into memos to liberate you." These insights distill scripture.
+
+### Tone rules
+
+- Direct, confident, no hedging
+- No "this verse" or "interestingly" or "notably"
+- Under 25 words
+- Plain text, no formatting
+- Could be: an etymology that reframes the meaning, an archaeological find, a cultural context invisible to modern readers, a hidden connection across scripture
+- Must make the reader see the verse differently
+
+### Examples
+
+- Ecc 1:1: "The Hebrew 'Qohelet' isn't a name — it's a job title, meaning 'one who assembles,' making this book's author permanently anonymous."
+- Ecc 1:2: "The Hebrew 'hevel' means breath or vapor — Qohelet isn't calling life worthless, he's calling it fleeting, like mist you can almost hold."
+- Gen 1:1: "The Hebrew word for 'created' — bara — is used exclusively with God as subject; humans make, shape, form, but never bara."
+
+### Architecture
+
+- Server-side: Express endpoint `/api/insight/:bookIndex/:chapter/:verse`
+- LLM: Anthropic Claude via SDK, called on first tap
+- Cache: `insights/{bookIndex}.json` on disk, keyed by `"chapter:verse"`. First tap generates, all subsequent taps serve from disk.
+- Client-side: `insightCache` object in memory for the session
+- Markdown stripped from responses (`*` and `_` removed)
+
+### Styling
+
+- `.insight` — same 17px font, muted color (`--text-muted`), 8px top padding
+- Hidden by default (`display: none`), shown with `.open` class
+- `.verse` is tappable (cursor pointer, tap highlight suppressed)
+- `.verse:active` dims to 0.4 opacity
+- "..." shown while generating
+
+---
+
 ## Rebuild Checklist
 
 To rebuild this from scratch:
