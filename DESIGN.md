@@ -189,6 +189,18 @@ Like a friend who studied theology for 20 years leaning over and saying somethin
 
 Inspired by yews.news calling their content "memos": "We distill the news into memos to liberate you." These insights distill scripture.
 
+### yews.news expanded article structure (for reference)
+
+yews.news articles expanded under headlines with this flow:
+1. Headline (bold, title case)
+2. William Blake illustration with attribution ("Blake, Wm. Title, object N. Year.")
+3. Lede: 1-2 sentences, the core fact
+4. Context: 2-3 short paragraphs
+5. Direct quote: "Name, title: 'quote'"
+6. Source link
+
+Our verse insight is the equivalent of the lede — one sharp sentence that reframes the content above it. Same position (immediately below the tapped item), same muted styling, same expand/collapse interaction.
+
 ### Tone rules
 
 - Direct, confident, no hedging
