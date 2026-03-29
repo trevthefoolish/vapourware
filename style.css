@@ -1,6 +1,6 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root { --bg: #e9e9eb; --text: #1b1212; --text-muted: rgba(27,18,18,0.5); --pad: 44px; }
+:root { --bg: #e9e9eb; --text: #1b1212; --text-muted: rgba(27,18,18,0.45); --pad: 52px; }
 
 html {
   -webkit-text-size-adjust: none;
@@ -13,7 +13,7 @@ body {
   background: var(--bg); color: var(--text);
   font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 17px; line-height: 22px; font-weight: 400;
-  letter-spacing: 0.006em;
+  letter-spacing: -0.01em;
   height: 100dvh; overflow: hidden;
   overscroll-behavior: none;
 }
@@ -57,13 +57,13 @@ body {
 
 /* HEADER */
 .header {
-  padding: 40px var(--pad) 16px var(--pad);
+  padding: 48px var(--pad) 20px var(--pad);
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
   display: flex; align-items: baseline; gap: 16px;
   flex-shrink: 0;
   font-weight: 500; letter-spacing: 0.02em;
 }
-.header:active { opacity: 0.5; }
+.header:active { opacity: 0.4; }
 .header-sub { font-weight: 400; color: var(--text-muted); }
 
 /* READING */
@@ -81,10 +81,10 @@ body {
 .chapter-scroll {
   height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 8px var(--pad) 0 var(--pad);
+  padding: 4px var(--pad) 0 var(--pad);
 }
-.verse { padding-bottom: 22px; }
-.bottom-spacer { height: 100px; flex-shrink: 0; }
+.verse { padding-bottom: 32px; }
+.bottom-spacer { height: 120px; flex-shrink: 0; }
 
 /* LOADING */
 .loading {
@@ -97,22 +97,22 @@ body {
   display: none; flex: 1; overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 0 var(--pad);
+  padding: 0;
 }
 .nav-header {
-  padding: 40px var(--pad) 16px var(--pad);
+  padding: 48px var(--pad) 20px var(--pad);
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
   display: flex; align-items: baseline; gap: 16px;
   flex-shrink: 0;
   font-weight: 500; letter-spacing: 0.02em;
 }
-.nav-header:active { opacity: 0.5; }
+.nav-header:active { opacity: 0.4; }
 .nav-book {
-  padding: 10px 0;
+  padding: 14px var(--pad);
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
 }
-.nav-book:active { opacity: 0.5; }
+.nav-book:active { opacity: 0.4; }
 .nav-book.current { font-weight: 500; }
-.nav-end { height: 80px; }
+.nav-end { height: 100px; }
 
-::selection { background: rgba(27,18,18,0.15); }
+::selection { background: rgba(27,18,18,0.12); }
