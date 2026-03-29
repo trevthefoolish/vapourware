@@ -21,8 +21,8 @@
 
   <div class="mobile-content">
     <div class="header" onclick="openNav()">
-      <span class="chapter-header-title" id="headerTitle">ECCLESIASTES 1</span>
-      <span class="chapter-header-sub">KJV</span>
+      <span id="headerTitle">ECCLESIASTES 1</span>
+      <span class="header-sub">KJV</span>
     </div>
     <div class="reading-view" id="readingView">
       <div class="swipe-container" id="swipeContainer">
@@ -36,8 +36,8 @@
 
     <div class="nav-view" id="navView">
       <div class="nav-header" onclick="closeNav()">
-        <span class="chapter-header-title" id="navTitle">ECCLESIASTES 1</span>
-        <span class="chapter-header-sub">KJV</span>
+        <span id="navTitle">ECCLESIASTES 1</span>
+        <span class="header-sub">KJV</span>
       </div>
       <div id="navInner"></div>
       <div class="nav-end"></div>
@@ -130,10 +130,13 @@
       });
     }
 
+    const headerEl = document.querySelector('.header');
+
     function openNav() {
       navOpen = true;
       navTitle.textContent = lbl(pos);
       markCurrent();
+      headerEl.style.display = 'none';
       readingView.style.display = 'none';
       navView.style.display = 'block';
       const el = document.getElementById('nb-' + ALL[pos].bi);
@@ -143,6 +146,7 @@
     function closeNav() {
       navOpen = false;
       navView.style.display = 'none';
+      headerEl.style.display = '';
       readingView.style.display = 'block';
     }
 
