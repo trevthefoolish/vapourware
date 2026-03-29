@@ -1,14 +1,79 @@
 # vapourware.ai — Design Document
 
-A KJV Bible reader inspired by [yews.news](https://yews.news) (Kanye West's news app, Dec 2023 – Apr 2024). This document captures every design decision so the app can be rebuilt from scratch.
+A Bible rendered in modern English by Claude, inspired by [yews.news](https://yews.news) (Kanye West's news app, Dec 2023 – Apr 2024). This document captures every design decision so the app can be rebuilt from scratch.
 
 ---
 
 ## Philosophy
 
-Two interactions for the entire Bible: **scroll** to read, **tap** to navigate. Nothing else. No icons, no buttons, no chrome, no decorative elements. The text is the interface.
+Two interactions: **scroll** to read, **tap** to navigate. Nothing else.
 
-Inspired by yews.news: a mobile-only, single-column bulletin that prioritized content over UI. Every element that doesn't serve the reading experience is removed.
+Claude renders every verse into modern English with a pastoral note explaining translation decisions. There is no KJV text, no static Bible data, no pre-existing translation. The entire Bible is generated on demand and cached as people read.
+
+Inspired by yews.news: mobile-only, single-column, ultra-minimal. "We distill the news into memos to liberate you." This app distills scripture.
+
+---
+
+## Architecture
+
+### Files
+
+```
+index.html    224 lines — swipe, nav, render verses from API
+style.css     143 lines — yews.news aesthetic, light/dark
+server.js      71 lines — one endpoint, Claude renders on demand
+renders/       cache directory (builds itself as people read)
+```
+
+No build step. No framework. No static Bible data anywhere.
+
+### How it works
+
+1. Client requests `/api/render/{bookIndex}/{chapter}/{verse}`
+2. Server checks `renders/{bookIndex}.json` for a cached result
+3. If cached, return it. If not, send the verse reference to Claude
+4. Claude returns a modern English rendering + pastoral note
+5. Server caches the result to disk and returns it
+6. Client renders the verse and note inline
+
+The cache builds organically. First visitor to a verse waits for Claude. Everyone after gets an instant response.
+
+### The prompt
+
+```
+{Book} {Chapter}:{Verse}
+
+Consider this verse's heritage through Hebrew, Aramaic, Greek, Latin, 
+and English. Then write your own modern English rendering that best 
+conveys the original meaning. Finally give a pithy, memorable tidbit 
+that primarily illuminates your translation decisions. The voice should 
+always be pastoral pointing us to Jesus and never academic pointing us 
+to grammar. Never use archaic English words in your note — if the 
+reader wouldn't say it in conversation, don't write it.
+
+Respond in exactly this format (two lines, no labels):
+Your modern rendering here
+---
+Your note here
+```
+
+Claude receives only the reference (e.g. "Ecclesiastes 1:1") — no KJV text is sent. Claude knows the Bible.
+
+### Voice
+
+Like a friend who studied theology for 20 years leaning over and saying something that changes everything. Pastoral, never academic. Pointing to Jesus, never to grammar.
+
+The notes illuminate what is lost when ancient languages pass through Latin and into English. They should make you see the verse differently.
+
+### Examples
+
+Ecclesiastes 1:1:
+- Rendering: "These are the collected words of the Preacher — a son of David, a king who once ruled Jerusalem."
+- Note: "The Hebrew title Qohelet means someone who gathers people together to speak, and Jesus is the ultimate fulfillment of that — the one who calls us to himself, opens his mouth, and gives us words that actually satisfy the emptiness this whole book is about to describe."
+
+Genesis 1:1:
+- Rendering: "In the beginning, God created everything — the sky above and the solid ground beneath our feet."
+- Note: "Moses wrote for tired slaves leaving Egypt, not theologians — he was saying: the God who just freed you made absolutely everything, so trust Him with what comes next."
 
 ---
 
@@ -20,39 +85,36 @@ Inspired by yews.news: a mobile-only, single-column bulletin that prioritized co
 |---|---|---|
 | Background | `#e9e9eb` | `#0e0e0e` |
 | Text | `#1b1212` | `#d4d4d4` |
-| Text muted | `rgba(27,18,18,0.4)` | `rgba(212,212,212,0.35)` |
+| Text muted (notes) | `rgba(27,18,18,0.4)` | `rgba(212,212,212,0.35)` |
 | Fade (gradients) | Same as background | Same as background |
 
-- Dark mode follows system preference via `prefers-color-scheme: dark`. No manual toggle.
-- The light background is yews.news's exact gray (`#e9e9eb`), not white.
-- Text is near-black, not pure black. Slightly warm (`#1b1212`).
-- Muted text is used only for the "KJV" label.
+Dark mode follows system preference. No toggle.
 
 ### Typography
 
 - **Font:** `-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif`
-- **Size:** 17px everywhere. Header, verses, nav — one size. No hierarchy through size.
-- **Line-height:** 28px (1.65 ratio). The KJV has long compound sentences; generous line-height helps track across line breaks.
-- **Weight:** 400 for body, 500 for titles/headers and current-book indicator. Only two weights.
-- **Letter-spacing:** -0.01em on body (SF Pro's native tracking). +0.02em on headers (slightly open for uppercase).
-- **Text rendering:** `antialiased` + `optimizeLegibility`.
+- **Size:** 17px everywhere. Header, verses, notes, nav — one size.
+- **Line-height:** 28px
+- **Weight:** 400 body, 500 header and current-book indicator
+- **Letter-spacing:** -0.01em body, 0.02em header
 
 ### Spacing
 
-- **Side padding:** 56px. On a 375px phone, this gives ~263px of text width. Feels generous and pushed inward, matching yews.news's deep margins.
-- **Verse gap:** 28px (`padding-bottom`). Same as line-height — each verse breathes.
-- **Header top padding:** 44px. Clears the iOS status bar area comfortably.
-- **Header bottom padding:** 0px. Content starts immediately below the header — the gradient handles the visual transition.
-- **Content top padding:** 12px. Just enough so the first verse isn't touching the gradient edge.
-- **Bottom spacer:** 120px. The last verse has generous room below; the bottom gradient fades into it.
-- **Nav book items:** 10px vertical padding, 56px horizontal (matching side margins). First book gets 16px top padding for breathing room after the nav title.
+- **Side padding:** 56px
+- **Verse gap:** 28px between verse-wraps
+- **Note padding:** 8px above the note, within the verse-wrap
+- **Header top:** 44px
+- **Header bottom:** 0px (content starts tight below)
+- **Content top:** 12px
+- **Bottom spacer:** 120px
+- **Nav book items:** 10px vertical, 56px horizontal
+- **Nav first book:** 16px top padding
 
 ### Gradients
 
-- **Top gradient:** 28px, fades from background color to transparent. Positioned at the top of the reading area, below the fixed header. Softens text as it scrolls under the header instead of hard-clipping.
-- **Bottom gradient:** 80px, fades from transparent to background color. The last visible verse dissolves into the background.
-- Both use `pointer-events: none` and `z-index: 10` so they don't interfere with scrolling/tapping.
-- Gradient color is a CSS variable (`--fade`) that switches between light and dark mode.
+- **Top:** 28px, background → transparent. Softens text scrolling under the header.
+- **Bottom:** 80px, transparent → background. Last verse dissolves.
+- Both: `pointer-events: none`, `z-index: 10`, use `--fade` variable for light/dark.
 
 ---
 
@@ -60,189 +122,121 @@ Inspired by yews.news: a mobile-only, single-column bulletin that prioritized co
 
 ### Mobile (< 480px)
 
-The app has two views that swap in place:
+Two views that swap in place:
 
 **Reading view:**
-- Fixed header at top: `BOOK NAME [chapter]` + `KJV` (muted)
-- Below: swipeable chapter content, vertically scrollable
-- Bottom gradient fades the lower edge
+- Fixed header showing `BOOK NAME [chapter]` (tappable → opens nav)
+- Below: swipeable chapter content with verses streaming in from the API
+- Each verse: modern rendering in body text, pastoral note in muted text below
+- Top and bottom gradients
 
 **Nav view:**
-- Same position as reading view — replaces it entirely
-- Title at top (tappable to close): same style as header
-- Scrollable list of 66 book names, Genesis to Revelation
-- Current book is bold (font-weight 500)
+- Replaces reading view (header hides)
+- Title at top (tappable → closes nav)
+- 66 book names, Genesis to Revelation
+- Current book is bold
 - Auto-scrolls to current book on open
-
-Tap the header → nav opens. Tap a book → nav closes, chapter loads. Tap nav title → nav closes. The header hides when nav is open (no double header).
 
 ### Desktop (≥ 480px)
 
-Shows a centered message: "THIS IS DESIGNED FOR MOBILE" with an iPhone 15 Pro frame mockup containing a centered italic quote from Ecclesiastes 1:2. The actual app is hidden. This matches yews.news's desktop behavior exactly.
+"THIS IS DESIGNED FOR MOBILE" with iPhone frame mockup.
 
 ---
 
-## Navigation Model
+## Navigation
 
-### Paged chapters with infinite swipe
+### Paged chapters, infinite swipe
 
-The entire Bible (1,189 chapters) is a single continuous ribbon. Swipe left for the next chapter, right for the previous. Ecclesiastes 12 → Song of Solomon 1. Genesis 50 → Exodus 1. No walls between books. The header updates as you cross book boundaries.
+1,189 chapters as a continuous ribbon. Swipe left for next, right for previous. No walls between books.
 
 ### 3-panel sliding window
 
-Only 3 DOM panels exist at any time: previous, current, next. The swipe track is `width: 300%` with panels at `33.333%` each. Default position: `translateX(-33.333%)` (centered on middle panel).
-
-After each swipe animation completes, the panels are rebuilt around the new position via `requestAnimationFrame` to avoid visible flash.
+Three DOM panels: previous, current, next. Track at `width: 300%`, panels at `33.333%`. Default: `translateX(-33.333%)`. After swipe animation, panels rebuild via `requestAnimationFrame`.
 
 ### Touch handling
 
-- `touchstart`: Record start position, reset state
-- `touchmove`: Detect direction on first significant movement (6px threshold). If horizontal, prevent default and drag the track. If vertical, release to native scroll.
-- `touchend`: If dragged past 15% of container width, commit the swipe. Otherwise snap back.
-- Easing: `cubic-bezier(0.16, 1, 0.3, 1)` — fast deceleration, feels physical.
-- `sliding` lock prevents double-swipes from stacking.
+- Direction detection: 6px threshold
+- Commit threshold: 15% of container width
+- Easing: `cubic-bezier(0.16, 1, 0.3, 1)`
+- `sliding` lock prevents stacking
+
+### Verse loading
+
+Verses stream in one at a time. The client fetches `/api/render/{bi}/{ch}/0`, then `/api/render/{bi}/{ch}/1`, and so on until the API returns a 404 (no more verses in that chapter). Each verse appears as it arrives. Cached verses appear instantly.
 
 ---
 
-## Data Architecture
+## Server
 
-### Source
+Express with `compression` middleware. The Anthropic SDK connects to Claude. One endpoint, one cache directory. The entire server is 71 lines.
 
-KJV text from [github.com/aruljohn/Bible-kjv](https://github.com/aruljohn/Bible-kjv) (public domain). Processed into 66 individual JSON files (`books/0.json` through `books/65.json`).
-
-### Format
-
-Each book file is a 2D array: `chapters[chapterIndex][verseIndex] = "verse text"`. No metadata, no verse numbers, no markup.
-
-### File sizes
-
-Range from 1.5KB (2 John) to 229KB (Psalms). Ecclesiastes is 29KB. Typical book is 20-80KB.
-
-### Loading strategy
-
-- **On init:** Fetch the starting book (Ecclesiastes, index 20). Also fire-and-forget fetches for the previous and next book.
-- **In-memory cache:** Each book is fetched once and held in `bookCache[bi]`. Subsequent access is synchronous.
-- **Prefetch on navigate:** After every chapter change, prefetch the neighboring books (bi-1, bi+1). Near book boundaries (within 2 chapters of start/end), also prefetch bi-2 or bi+2.
-- **On swipe:** If the next chapter's book isn't cached, await its fetch before animating. This is the only blocking fetch — all others are fire-and-forget.
-- **On nav jump:** If the target book isn't cached, show "..." loading state while fetching. Neighbors are fetched concurrently.
-
-### Server
-
-Express with `compression` middleware. Static file serving. The `compression` middleware gzips JSON responses automatically (~70% reduction). No cache headers, no service worker, no client-side persistence beyond the in-memory `bookCache` object.
+The `renders/` directory contains one JSON file per book (created on first access). Each file is keyed by `"chapter:verse"` → `{rendering, note}`. Markdown (`*` and `_`) is stripped from Claude's responses.
 
 ---
 
-## Interaction Reference
+## yews.news Reference
 
-| Action | Result |
-|---|---|
-| Swipe left | Next chapter (seamless across books) |
-| Swipe right | Previous chapter |
-| Scroll up/down | Read within chapter |
-| Tap header | Open book list |
-| Tap book name | Jump to that book's chapter 1, close nav |
-| Tap nav title | Close nav, return to reading |
+### What it was
 
----
+A mobile-only news aggregator that published 3x daily (10AM, 3PM, 8PM editions). Each edition: a date/time header, ~10 punchy headlines, "Expand" to open all articles, "Simplify" to collapse.
 
-## File Structure
+### Expanded article structure
 
-```
-/
-├── index.html       Single page, all JS inline (~260 lines)
-├── style.css        All styles (~150 lines)
-├── server.js        Express static server with compression
-├── books/
-│   ├── 0.json       Genesis
-│   ├── 1.json       Exodus
-│   ├── ...
-│   └── 65.json      Revelation
-├── package.json
-└── DESIGN.md        This file
-```
-
----
-
-## Anti-patterns (things we tried and rejected)
-
-- **Accordion navigation** — Expanding chapters inside book names felt glitchy. DOM rebuilds caused scroll jumps.
-- **Bottom sheet / overlay nav** — Foreign to the yews.news aesthetic. The app should feel like one flat surface, not layered.
-- **Service worker / client-side caching** — Unnecessary complexity. Per-book files are small enough that re-fetching is fine. The in-memory cache handles the session.
-- **Monolithic Bible JSON (4MB)** — Too slow on first load. Split into per-book files.
-- **External API (dailybible.ca)** — Added latency and failure modes. Bundled data is better.
-- **OT/NT section labels** — Added visual noise to the nav. Just book names.
-- **Different font sizes for different elements** — Creates hierarchy that fights the minimal aesthetic. One size everywhere.
-- **Inline header (scrolls with content)** — Loses your place in long chapters. Fixed header is more useful and more true to yews.news.
-- **Top gradient on first load** — Fades the first verse, which looks broken. Only applies during scroll.
-- **Spacing systems (calc from a base unit)** — Over-engineered. The final values were tuned by eye.
-- **260px fixed column width** — Too narrow for 17px flowing prose. Full-width with generous padding is better.
-
----
-
-## AI Verse Insights
-
-Tap any verse to reveal a one-sentence insight below it in muted text. Tap again to collapse. Same expand/collapse pattern yews.news used for article summaries under headlines.
-
-### Voice
-
-Like a friend who studied theology for 20 years leaning over and saying something that changes everything. Not a textbook footnote. Not a dictionary definition. A revelation — the kind of thing a scholar would whisper in the margin.
-
-Inspired by yews.news calling their content "memos": "We distill the news into memos to liberate you." These insights distill scripture.
-
-### yews.news expanded article structure (for reference)
-
-yews.news articles expanded under headlines with this flow:
 1. Headline (bold, title case)
-2. William Blake illustration with attribution ("Blake, Wm. Title, object N. Year.")
-3. Lede: 1-2 sentences, the core fact
+2. William Blake illustration with attribution
+3. Lede: 1-2 sentences
 4. Context: 2-3 short paragraphs
 5. Direct quote: "Name, title: 'quote'"
 6. Source link
 
-Our verse insight is the equivalent of the lede — one sharp sentence that reframes the content above it. Same position (immediately below the tapped item), same muted styling, same expand/collapse interaction.
+### Design DNA we kept
 
-### Tone rules
+- Mobile-only with phone frame on desktop
+- Single-column, generous margins
+- One font, one size, one color
+- Light gray background (#e9e9eb), not white
+- Tap to toggle between content and navigation
+- No icons, no buttons, no chrome
+- Text is the interface
 
-- Direct, confident, no hedging
-- No "this verse" or "interestingly" or "notably"
-- Under 25 words
-- Plain text, no formatting
-- Could be: an etymology that reframes the meaning, an archaeological find, a cultural context invisible to modern readers, a hidden connection across scripture
-- Must make the reader see the verse differently
+### What we changed
 
-### Examples
+- Bible instead of news
+- Claude rendering instead of aggregated articles
+- Swipe between chapters instead of accordion expand
+- Pastoral notes instead of news summaries
+- Dark mode (yews didn't have this)
+- Gradients at content edges (yews had hard clips)
 
-- Ecc 1:1: "The Hebrew 'Qohelet' isn't a name — it's a job title, meaning 'one who assembles,' making this book's author permanently anonymous."
-- Ecc 1:2: "The Hebrew 'hevel' means breath or vapor — Qohelet isn't calling life worthless, he's calling it fleeting, like mist you can almost hold."
-- Gen 1:1: "The Hebrew word for 'created' — bara — is used exclusively with God as subject; humans make, shape, form, but never bara."
+---
 
-### Architecture
+## Anti-patterns (tried and rejected)
 
-- Server-side: Express endpoint `/api/insight/:bookIndex/:chapter/:verse`
-- LLM: Anthropic Claude via SDK, called on first tap
-- Cache: `insights/{bookIndex}.json` on disk, keyed by `"chapter:verse"`. First tap generates, all subsequent taps serve from disk.
-- Client-side: `insightCache` object in memory for the session
-- Markdown stripped from responses (`*` and `_` removed)
-
-### Styling
-
-- `.insight` — same 17px font, muted color (`--text-muted`), 8px top padding
-- Hidden by default (`display: none`), shown with `.open` class
-- `.verse` is tappable (cursor pointer, tap highlight suppressed)
-- `.verse:active` dims to 0.4 opacity
-- "..." shown while generating
+- **KJV text stored locally** — Unnecessary when Claude knows the Bible
+- **66 per-book JSON files** — Complexity for static data we don't need
+- **Monolithic 4MB Bible JSON** — Slow first load, unnecessary
+- **External API (dailybible.ca)** — Added latency and failure modes
+- **KJV + Claude toggle** — Two modes is one too many
+- **Tap-to-expand insights under KJV** — Replaced by always-visible notes in Claude rendering
+- **Accordion book navigation** — Glitchy DOM rebuilds
+- **Bottom sheet nav** — Foreign to yews.news aesthetic
+- **OT/NT section labels** — Visual noise
+- **Different font sizes for hierarchy** — One size everywhere
+- **Spacing systems (calc from base unit)** — Over-engineered; tuned by eye
+- **Service worker / client caching** — Unnecessary complexity
+- **Pre-generating insights** — Slow, wasteful; on-demand + cache is better
+- **Instructional LLM prompts** — Few-shot examples and voice descriptions work better
+- **Archaic English in notes** — Defeats the purpose of modern rendering
 
 ---
 
 ## Rebuild Checklist
 
-To rebuild this from scratch:
+1. `npm init` + install `express`, `compression`, `@anthropic-ai/sdk`
+2. Write `server.js`: one `/api/render/:bi/:ch/:v` endpoint, Claude call, disk cache
+3. Write `index.html`: desktop gate, header, 3-panel swipe track, nav view, verse streaming
+4. Write `style.css`: exact values from this document
+5. Deploy with `api_credentials` for the Anthropic SDK
+6. Test on a real phone — screenshots don't capture swipe feel
 
-1. Create the book JSON files from the aruljohn/Bible-kjv source
-2. Set up Express with compression middleware
-3. Build the HTML with: desktop gate, fixed header, 3-panel swipe track, nav view, loading state
-4. Style with the exact values from this document
-5. Implement: touch swipe with direction lock, 3-panel sliding window with requestAnimationFrame rebuild, in-memory book cache with eager prefetch, nav toggle
-6. Test on a real phone — Playwright screenshots don't capture the feel of the swipe
-
-The entire app is ~410 lines of code (HTML + CSS) plus the data files. No build step, no framework, no dependencies beyond Express.
+The app is 438 lines of code. No build step, no framework.
