@@ -123,6 +123,11 @@ body {
   padding-top: 8px;
 }
 .insight.open { display: block; }
+.expand-all {
+  padding: 20px 0 0 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.expand-all:active { opacity: 0.4; }
 .bottom-spacer { height: 120px; flex-shrink: 0; }
 
 /* LOADING */

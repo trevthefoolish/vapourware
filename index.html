@@ -155,13 +155,14 @@
       const verses = (p !== null) ? getVerses(p) : null;
       if (!verses) { panel.innerHTML = '<div class="chapter-scroll"></div>'; return; }
       const e = ALL[p];
-      let h = '<div class="chapter-scroll">';
+      let h = '<div class="chapter-scroll" data-panel-bi="' + e.bi + '" data-panel-ch="' + e.ch + '">';
       for (let i = 0; i < verses.length; i++) {
         h += '<div class="verse-wrap" data-bi="' + e.bi + '" data-ch="' + e.ch + '" data-v="' + i + '">';
         h += '<p class="verse" onclick="toggleInsight(this)">' + verses[i] + '</p>';
         h += '<p class="insight"></p>';
         h += '</div>';
       }
+      h += '<p class="expand-all" onclick="toggleAll(this)">Expand</p>';
       h += '<div class="bottom-spacer"></div></div>';
       panel.innerHTML = h;
     }
@@ -204,6 +205,47 @@
       } catch (e) {
         insightEl.textContent = '';
         insightEl.classList.remove('open');
+      }
+    }
+
+    async function toggleAll(el) {
+      const scroll = el.closest('.chapter-scroll');
+      const wraps = scroll.querySelectorAll('.verse-wrap');
+      const anyOpen = scroll.querySelector('.insight.open');
+
+      if (anyOpen) {
+        // Simplify
+        wraps.forEach(w => {
+          const ins = w.querySelector('.insight');
+          ins.classList.remove('open');
+          ins.textContent = '';
+        });
+        el.textContent = 'Expand';
+      } else {
+        // Expand all
+        el.textContent = 'Simplify';
+        for (const w of wraps) {
+          const ins = w.querySelector('.insight');
+          if (ins.classList.contains('open')) continue;
+          const bi = w.dataset.bi, ch = w.dataset.ch, v = w.dataset.v;
+          const key = bi + ':' + ch + ':' + v;
+          if (insightCache[key]) {
+            ins.textContent = insightCache[key];
+            ins.classList.add('open');
+          } else {
+            ins.textContent = '...';
+            ins.classList.add('open');
+            try {
+              const res = await fetch('./api/insight/' + bi + '/' + ch + '/' + v);
+              const data = await res.json();
+              insightCache[key] = data.insight;
+              ins.textContent = data.insight;
+            } catch (e) {
+              ins.textContent = '';
+              ins.classList.remove('open');
+            }
+          }
+        }
       }
     }
 
