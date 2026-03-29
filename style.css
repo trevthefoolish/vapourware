@@ -1,6 +1,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root { --bg: #e9e9eb; --text: #1b1212; --text-muted: rgba(27,18,18,0.45); --pad: 52px; }
+:root { --bg: #e9e9eb; --text: #1b1212; --text-muted: rgba(27,18,18,0.45); --pad: 52px; --fade: #e9e9eb; }
+
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0e0e0e; --text: #d4d4d4; --text-muted: rgba(212,212,212,0.4); --fade: #0e0e0e; }
+}
 
 html {
   -webkit-text-size-adjust: none;
@@ -67,7 +71,20 @@ body {
 .header-sub { font-weight: 400; color: var(--text-muted); }
 
 /* READING */
-.reading-view { flex: 1; overflow: hidden; }
+.reading-view { flex: 1; overflow: hidden; position: relative; }
+.reading-view::before,
+.reading-view::after {
+  content: ''; position: absolute; left: 0; right: 0;
+  z-index: 10; pointer-events: none;
+}
+.reading-view::before {
+  top: 0; height: 40px;
+  background: linear-gradient(to bottom, var(--fade), transparent);
+}
+.reading-view::after {
+  bottom: 0; height: 60px;
+  background: linear-gradient(to top, var(--fade), transparent);
+}
 .swipe-container { height: 100%; overflow: hidden; }
 .swipe-track {
   display: flex; height: 100%; width: 300%;
@@ -81,7 +98,7 @@ body {
 .chapter-scroll {
   height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 4px var(--pad) 0 var(--pad);
+  padding: 40px var(--pad) 0 var(--pad);
 }
 .verse { padding-bottom: 32px; }
 .bottom-spacer { height: 120px; flex-shrink: 0; }
@@ -108,7 +125,7 @@ body {
 }
 .nav-header:active { opacity: 0.4; }
 .nav-book {
-  padding: 14px var(--pad);
+  padding: 8px var(--pad);
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
 }
 .nav-book:active { opacity: 0.4; }
