@@ -26,14 +26,12 @@
       <span class="header-sub">KJV</span>
     </div>
 
-    <!-- READING -->
     <div class="reading-view" id="readingView">
       <div class="swipe-container" id="swipeContainer">
         <div class="swipe-track" id="swipeTrack"></div>
       </div>
     </div>
 
-    <!-- NAV (same style, just replaces reading view) -->
     <div class="nav-view" id="navView">
       <div class="nav-scroll">
         <div class="nav-inner" id="navInner"></div>
@@ -45,41 +43,35 @@
   </div>
 
   <script>
-    const BOOKS = [
-      {name:"Genesis",ch:50},{name:"Exodus",ch:40},{name:"Leviticus",ch:27},
-      {name:"Numbers",ch:36},{name:"Deuteronomy",ch:34},{name:"Joshua",ch:24},
-      {name:"Judges",ch:21},{name:"Ruth",ch:4},{name:"1 Samuel",ch:31},
-      {name:"2 Samuel",ch:24},{name:"1 Kings",ch:22},{name:"2 Kings",ch:25},
-      {name:"1 Chronicles",ch:29},{name:"2 Chronicles",ch:36},{name:"Ezra",ch:10},
-      {name:"Nehemiah",ch:13},{name:"Esther",ch:10},{name:"Job",ch:42},
-      {name:"Psalms",ch:150},{name:"Proverbs",ch:31},{name:"Ecclesiastes",ch:12},
-      {name:"Song of Solomon",api:"Song",ch:8},{name:"Isaiah",ch:66},{name:"Jeremiah",ch:52},
-      {name:"Lamentations",ch:5},{name:"Ezekiel",ch:48},{name:"Daniel",ch:12},
-      {name:"Hosea",ch:14},{name:"Joel",ch:3},{name:"Amos",ch:9},
-      {name:"Obadiah",ch:1},{name:"Jonah",ch:4},{name:"Micah",ch:7},
-      {name:"Nahum",ch:3},{name:"Habakkuk",ch:3},{name:"Zephaniah",ch:3},
-      {name:"Haggai",ch:2},{name:"Zechariah",ch:14},{name:"Malachi",ch:4},
-      {name:"Matthew",ch:28},{name:"Mark",ch:16},{name:"Luke",ch:24},
-      {name:"John",ch:21},{name:"Acts",ch:28},{name:"Romans",ch:16},
-      {name:"1 Corinthians",ch:16},{name:"2 Corinthians",ch:13},{name:"Galatians",ch:6},
-      {name:"Ephesians",ch:6},{name:"Philippians",ch:4},{name:"Colossians",ch:4},
-      {name:"1 Thessalonians",ch:5},{name:"2 Thessalonians",ch:3},{name:"1 Timothy",ch:6},
-      {name:"2 Timothy",ch:4},{name:"Titus",ch:3},{name:"Philemon",ch:1},
-      {name:"Hebrews",ch:13},{name:"James",ch:5},{name:"1 Peter",ch:5},
-      {name:"2 Peter",ch:3},{name:"1 John",ch:5},{name:"2 John",ch:1},
-      {name:"3 John",ch:1},{name:"Jude",ch:1},{name:"Revelation",ch:22}
+    const NAMES = [
+      "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua",
+      "Judges","Ruth","1 Samuel","2 Samuel","1 Kings","2 Kings",
+      "1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job",
+      "Psalms","Proverbs","Ecclesiastes","Song of Solomon","Isaiah","Jeremiah",
+      "Lamentations","Ezekiel","Daniel","Hosea","Joel","Amos",
+      "Obadiah","Jonah","Micah","Nahum","Habakkuk","Zephaniah",
+      "Haggai","Zechariah","Malachi",
+      "Matthew","Mark","Luke","John","Acts","Romans",
+      "1 Corinthians","2 Corinthians","Galatians","Ephesians","Philippians","Colossians",
+      "1 Thessalonians","2 Thessalonians","1 Timothy","2 Timothy","Titus","Philemon",
+      "Hebrews","James","1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"
     ];
 
+    let BIBLE = null; // loaded async: BIBLE[bookIdx][chapterIdx] = [verse strings]
+
+    // Flat index: every chapter as {bi, ch (0-based)}
+    const CHS = [
+      50,40,27,36,34,24,21,4,31,24,22,25,29,36,10,13,10,42,
+      150,31,12,8,66,52,5,48,12,14,3,9,1,4,7,3,3,3,2,14,4,
+      28,16,24,21,28,16,16,13,6,6,4,4,5,3,6,4,3,1,13,5,5,3,5,1,1,1,22
+    ];
     const ALL = [];
-    BOOKS.forEach((b, bi) => {
-      for (let c = 1; c <= b.ch; c++) ALL.push({ bi, ch: c });
-    });
+    CHS.forEach((n, bi) => { for (let c = 0; c < n; c++) ALL.push({ bi, ch: c }); });
     const TOTAL = ALL.length;
-    let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 1);
+
+    let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0); // Ecclesiastes 1
     let navOpen = false;
 
-    const API = 'https://dailybible.ca/api/';
-    const cache = {};
     const track = document.getElementById('swipeTrack');
     const container = document.getElementById('swipeContainer');
     const headerTitle = document.getElementById('headerTitle');
@@ -88,7 +80,10 @@
     const navInner = document.getElementById('navInner');
     const loadingEl = document.getElementById('loading');
 
-    function lbl(p) { const e = ALL[p]; return BOOKS[e.bi].name.toUpperCase() + ' ' + e.ch; }
+    function lbl(p) {
+      const e = ALL[p];
+      return NAMES[e.bi].toUpperCase() + ' ' + (e.ch + 1);
+    }
 
     function updateLabel() {
       const t = lbl(pos);
@@ -99,21 +94,20 @@
     // NAV
     function buildNavOnce() {
       let html = '';
-      BOOKS.forEach((b, bi) => {
-        html += '<div class="nav-book" id="nb-' + bi + '" data-bi="' + bi + '">' + b.name + '</div>';
+      NAMES.forEach((name, bi) => {
+        html += '<div class="nav-book" id="nb-' + bi + '" data-bi="' + bi + '">' + name + '</div>';
       });
       navInner.innerHTML = html;
-
       navInner.addEventListener('click', function(e) {
         const el = e.target.closest('.nav-book');
         if (!el) return;
         const bi = parseInt(el.dataset.bi);
-        const np = ALL.findIndex(a => a.bi === bi && a.ch === 1);
+        const np = ALL.findIndex(a => a.bi === bi && a.ch === 0);
         if (np >= 0) {
           navOpen = false;
           navView.style.display = 'none';
           readingView.style.display = 'block';
-          if (np !== pos) jumpTo(np);
+          if (np !== pos) { pos = np; buildPanels(); }
         }
       });
     }
@@ -139,61 +133,32 @@
       }
     }
 
-    // FETCH
-    async function fetchChapter(idx) {
-      if (idx < 0 || idx >= TOTAL) return null;
-      const e = ALL[idx];
-      const book = BOOKS[e.bi];
-      const apiName = book.api || book.name;
-      const key = apiName + '+' + e.ch;
-      if (cache[key]) return cache[key];
-      try {
-        const res = await fetch(API + encodeURIComponent(apiName) + '+' + e.ch + '?translation=kjv');
-        const data = await res.json();
-        const verses = data.verses.map(v => v.text);
-        cache[key] = verses;
-        return verses;
-      } catch (e) {
-        return ['Failed to load. Try again.'];
-      }
+    // PANELS — all instant now, no async
+    function getVerses(p) {
+      if (p < 0 || p >= TOTAL || !BIBLE) return null;
+      const e = ALL[p];
+      return BIBLE[e.bi][e.ch];
     }
 
     function panelHTML(verses) {
       if (!verses) return '<div class="chapter-scroll"></div>';
       let h = '<div class="chapter-scroll">';
-      verses.forEach(v => { h += '<p class="verse">' + v + '</p>'; });
+      for (let i = 0; i < verses.length; i++) h += '<p class="verse">' + verses[i] + '</p>';
       h += '<div class="bottom-spacer"></div></div>';
       return h;
     }
 
-    // 3-PANEL
-    async function buildPanels() {
-      const cur = await fetchChapter(pos);
+    function buildPanels() {
       track.innerHTML =
-        '<div class="ch-panel" data-slot="0"><div class="chapter-scroll"></div></div>' +
-        '<div class="ch-panel" data-slot="1">' + panelHTML(cur) + '</div>' +
-        '<div class="ch-panel" data-slot="2"><div class="chapter-scroll"></div></div>';
+        '<div class="ch-panel" data-slot="0">' + panelHTML(getVerses(pos - 1)) + '</div>' +
+        '<div class="ch-panel" data-slot="1">' + panelHTML(getVerses(pos)) + '</div>' +
+        '<div class="ch-panel" data-slot="2">' + panelHTML(getVerses(pos + 1)) + '</div>';
       track.style.transition = 'none';
       track.style.transform = 'translateX(-33.333%)';
       updateLabel();
-      if (pos > 0) fetchChapter(pos - 1).then(v => {
-        const el = track.querySelector('[data-slot="0"]'); if (el) el.innerHTML = panelHTML(v);
-      });
-      if (pos < TOTAL - 1) fetchChapter(pos + 1).then(v => {
-        const el = track.querySelector('[data-slot="2"]'); if (el) el.innerHTML = panelHTML(v);
-      });
     }
 
-    async function jumpTo(np) {
-      pos = np;
-      loadingEl.style.display = 'flex';
-      readingView.style.display = 'none';
-      await buildPanels();
-      loadingEl.style.display = 'none';
-      readingView.style.display = 'block';
-    }
-
-    async function slideTo(dir) {
+    function slideTo(dir) {
       const np = pos + dir;
       if (np < 0 || np >= TOTAL) {
         track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
@@ -202,22 +167,19 @@
       }
       track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
       track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
-      await new Promise(r => setTimeout(r, 300));
-      pos = np;
-      await buildPanels();
+      setTimeout(() => { pos = np; buildPanels(); }, 300);
     }
 
     // SWIPE
-    let sx=0, sy=0, dx=0, drag=false, horiz=null;
+    let sx=0,sy=0,dx=0,drag=false,horiz=null;
     container.addEventListener('touchstart', e => {
       if (navOpen) return;
-      sx=e.touches[0].clientX; sy=e.touches[0].clientY;
-      dx=0; drag=true; horiz=null;
-      track.style.transition='none';
+      sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+      dx=0;drag=true;horiz=null;track.style.transition='none';
     }, {passive:true});
     container.addEventListener('touchmove', e => {
       if (!drag||navOpen) return;
-      const mx=e.touches[0].clientX-sx, my=e.touches[0].clientY-sy;
+      const mx=e.touches[0].clientX-sx,my=e.touches[0].clientY-sy;
       if (horiz===null&&(Math.abs(mx)>8||Math.abs(my)>8)) horiz=Math.abs(mx)>Math.abs(my);
       if (horiz===false){drag=false;return;}
       if (horiz){e.preventDefault();dx=mx;
@@ -225,20 +187,24 @@
     }, {passive:false});
     container.addEventListener('touchend', () => {
       if (!drag||!horiz){drag=false;return;}
-      drag=false;
-      const thr=container.offsetWidth*0.2;
+      drag=false;const thr=container.offsetWidth*0.2;
       if (dx<-thr) slideTo(1);
       else if (dx>thr) slideTo(-1);
       else {track.style.transition='transform 0.3s cubic-bezier(0.16,1,0.3,1)';
         track.style.transform='translateX(-33.333%)';}
     });
 
-    // INIT
+    // INIT — load Bible then render
     (async () => {
       buildNavOnce();
-      loadingEl.style.display = 'flex';
-      readingView.style.display = 'none';
-      await buildPanels();
+      try {
+        const res = await fetch('./kjv.json');
+        BIBLE = await res.json();
+      } catch (e) {
+        loadingEl.textContent = 'Failed to load Bible data.';
+        return;
+      }
+      buildPanels();
       loadingEl.style.display = 'none';
       readingView.style.display = 'block';
     })();
