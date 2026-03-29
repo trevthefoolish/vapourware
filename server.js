@@ -93,7 +93,7 @@ app.get("/api/render/:bi/:ch/:v", async (req, res) => {
     const msg = await client.messages.create({
       model: "claude_sonnet_4_6",
       max_tokens: 400,
-      messages: [{ role: "user", content: `"${verseText}" — ${BOOK_NAMES[bi]} ${ch+1}:${v+1}\n\nConsider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then write your own modern English rendering that best conveys the original meaning. Finally give a pithy, memorable tidbit that primarily illuminates your translation decisions. The voice should always be pastoral pointing us to Jesus and never academic pointing us to grammar.\n\nRespond in exactly this format (two lines, no labels):\nYour modern rendering here\n---\nYour note here` }]
+      messages: [{ role: "user", content: `"${verseText}" — ${BOOK_NAMES[bi]} ${ch+1}:${v+1}\n\nConsider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then write your own modern English rendering that best conveys the original meaning. Finally give a pithy, memorable tidbit that primarily illuminates your translation decisions. The voice should always be pastoral pointing us to Jesus and never academic pointing us to grammar. Never use archaic English words in your note — if the reader wouldn't say it in conversation, don't write it.\n\nRespond in exactly this format (two lines, no labels):\nYour modern rendering here\n---\nYour note here` }]
     });
     const text = clean(msg.content[0].text);
     const sep = text.indexOf('---');
