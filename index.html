@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ECCLESIASTES 1</title>
-  <meta name="description" content="King James Version">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -20,9 +19,8 @@
   </div>
 
   <div class="mobile-content">
-    <div class="header">
-      <span id="headerTitle" onclick="openNav()">ECCLESIASTES 1</span>
-      <span class="header-sub" id="modeToggle" onclick="toggleMode(event)">KJV</span>
+    <div class="header" onclick="openNav()">
+      <span id="headerTitle">ECCLESIASTES 1</span>
     </div>
 
     <div class="reading-view" id="readingView">
@@ -38,7 +36,6 @@
     <div class="nav-view" id="navView">
       <div class="nav-title" onclick="closeNav()">
         <span id="navTitleText">ECCLESIASTES 1</span>
-        <span class="nav-title-sub">KJV</span>
       </div>
       <div id="navInner"></div>
       <div class="nav-end"></div>
@@ -71,17 +68,12 @@
     const TOTAL = ALL.length;
 
     let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0);
-    let navOpen = false;
-    let sliding = false;
-    let mode = 'kjv'; // 'kjv' or 'claude'
-    const bookCache = {};
-    const renderCache = {}; // key: 'bi:ch:v' → {rendering, note}
-    const modeToggle = document.getElementById('modeToggle');
+    let navOpen = false, sliding = false;
+    const cache = {};
 
     const track = document.getElementById('swipeTrack');
     const container = document.getElementById('swipeContainer');
     const headerTitle = document.getElementById('headerTitle');
-    const headerEl = document.querySelector('.header');
     const readingView = document.getElementById('readingView');
     const navView = document.getElementById('navView');
     const navTitleText = document.getElementById('navTitleText');
@@ -92,220 +84,85 @@
     function lbl(p) { const e = ALL[p]; return NAMES[e.bi].toUpperCase() + ' ' + (e.ch + 1); }
     function updateLabel() { const t = lbl(pos); headerTitle.textContent = t; document.title = t; }
 
-    async function loadBook(bi) {
-      if (bookCache[bi]) return bookCache[bi];
-      const res = await fetch('./books/' + bi + '.json');
-      const data = await res.json();
-      bookCache[bi] = data;
-      return data;
-    }
-
-    function getVerses(p) {
-      if (p < 0 || p >= TOTAL) return null;
-      const e = ALL[p];
-      const book = bookCache[e.bi];
-      return book ? book[e.ch] : null;
-    }
-
-    function prefetchBook(bi) {
-      if (bi >= 0 && bi < 66 && !bookCache[bi]) loadBook(bi);
-    }
-
     // NAV
-    function buildNavOnce() {
-      let html = '';
+    (function buildNav() {
+      let h = '';
       NAMES.forEach((name, bi) => {
-        html += '<div class="nav-book" id="nb-' + bi + '" data-bi="' + bi + '">' + name + '</div>';
+        h += '<div class="nav-book" id="nb-' + bi + '" data-bi="' + bi + '">' + name + '</div>';
       });
-      navInner.innerHTML = html;
-      navInner.addEventListener('click', function(e) {
+      navInner.innerHTML = h;
+      navInner.addEventListener('click', e => {
         const el = e.target.closest('.nav-book');
         if (!el) return;
-        const bi = parseInt(el.dataset.bi);
-        const np = ALL.findIndex(a => a.bi === bi && a.ch === 0);
+        const np = ALL.findIndex(a => a.bi === parseInt(el.dataset.bi) && a.ch === 0);
         closeNav();
-        if (np >= 0 && np !== pos) { pos = np; jumpTo(); }
+        if (np >= 0 && np !== pos) { pos = np; fillAllPanels(); }
       });
-    }
-
-    function markCurrent() {
-      const curBi = ALL[pos].bi;
-      navInner.querySelectorAll('.nav-book').forEach(el => {
-        el.classList.toggle('current', parseInt(el.dataset.bi) === curBi);
-      });
-    }
+    })();
 
     function openNav() {
       navOpen = true;
       navTitleText.textContent = lbl(pos);
-      markCurrent();
-      headerEl.style.display = 'none';
+      const curBi = ALL[pos].bi;
+      navInner.querySelectorAll('.nav-book').forEach(el =>
+        el.classList.toggle('current', parseInt(el.dataset.bi) === curBi));
+      document.querySelector('.header').style.display = 'none';
       readingView.style.display = 'none';
       navView.style.display = 'block';
-      const el = document.getElementById('nb-' + ALL[pos].bi);
+      const el = document.getElementById('nb-' + curBi);
       if (el) setTimeout(() => el.scrollIntoView({ block: 'start' }), 20);
     }
 
     function closeNav() {
       navOpen = false;
       navView.style.display = 'none';
-      headerEl.style.display = '';
+      document.querySelector('.header').style.display = '';
       readingView.style.display = 'block';
     }
 
-    // MODE TOGGLE
-    function toggleMode(e) {
-      e.stopPropagation();
-      mode = mode === 'kjv' ? 'claude' : 'kjv';
-      modeToggle.textContent = mode === 'kjv' ? 'KJV' : 'CLAUDE';
-      fillAllPanels();
-    }
+    // RENDER
+    async function fillPanel(panel, p) {
+      const scroll = document.createElement('div');
+      scroll.className = 'chapter-scroll';
+      scroll.dataset.p = p;
+      panel.innerHTML = '';
+      panel.appendChild(scroll);
+      if (p === null || p < 0 || p >= TOTAL) return;
 
-    // PANELS
-    function fillPanel(panel, p) {
-      const verses = (p !== null) ? getVerses(p) : null;
-      if (!verses) { panel.innerHTML = '<div class="chapter-scroll"></div>'; return; }
       const e = ALL[p];
-      let h = '<div class="chapter-scroll" data-panel-bi="' + e.bi + '" data-panel-ch="' + e.ch + '">';
-      if (mode === 'kjv') {
-        for (let i = 0; i < verses.length; i++) {
-          h += '<div class="verse-wrap" data-bi="' + e.bi + '" data-ch="' + e.ch + '" data-v="' + i + '">';
-          h += '<p class="verse" onclick="toggleInsight(this)">' + verses[i] + '</p>';
-          h += '<p class="insight"></p>';
-          h += '</div>';
+      let v = 0;
+      while (true) {
+        const key = e.bi + ':' + e.ch + ':' + v;
+        let data = cache[key];
+        if (!data) {
+          try {
+            const res = await fetch('./api/render/' + e.bi + '/' + e.ch + '/' + v);
+            if (!res.ok) break;
+            data = await res.json();
+            cache[key] = data;
+          } catch { break; }
         }
-        h += '<p class="expand-all" onclick="toggleAll(this)">Expand</p>';
-      } else {
-        for (let i = 0; i < verses.length; i++) {
-          h += '<div class="verse-wrap claude-wrap" data-bi="' + e.bi + '" data-ch="' + e.ch + '" data-v="' + i + '">';
-          h += '<p class="verse claude-verse">...</p>';
-          h += '<p class="insight claude-note"></p>';
-          h += '</div>';
+        if (!scroll.isConnected || scroll.dataset.p != p) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'verse-wrap';
+        const vEl = document.createElement('p');
+        vEl.className = 'verse';
+        vEl.textContent = data.rendering;
+        wrap.appendChild(vEl);
+        if (data.note) {
+          const nEl = document.createElement('p');
+          nEl.className = 'note';
+          nEl.textContent = data.note;
+          wrap.appendChild(nEl);
         }
+        scroll.appendChild(wrap);
+        v++;
       }
-      h += '<div class="bottom-spacer"></div></div>';
-      panel.innerHTML = h;
-
-      // If Claude mode, start loading renderings
-      if (mode === 'claude' && p !== null) {
-        loadRenderings(panel, e.bi, e.ch, verses.length);
-      }
-    }
-
-    async function loadRenderings(panel, bi, ch, count) {
-      for (let v = 0; v < count; v++) {
-        const wrap = panel.querySelector('[data-bi="' + bi + '"][data-ch="' + ch + '"][data-v="' + v + '"]');
-        if (!wrap) continue;
-        const verseEl = wrap.querySelector('.claude-verse');
-        const noteEl = wrap.querySelector('.claude-note');
-        const key = bi + ':' + ch + ':' + v;
-
-        if (renderCache[key]) {
-          verseEl.textContent = renderCache[key].rendering;
-          if (renderCache[key].note) {
-            noteEl.textContent = renderCache[key].note;
-            noteEl.classList.add('open');
-          }
-          continue;
-        }
-
-        try {
-          const res = await fetch('./api/render/' + bi + '/' + ch + '/' + v);
-          const data = await res.json();
-          renderCache[key] = { rendering: data.rendering, note: data.note };
-          // Only update if panel still showing same content
-          if (wrap.isConnected) {
-            verseEl.textContent = data.rendering;
-            if (data.note) {
-              noteEl.textContent = data.note;
-              noteEl.classList.add('open');
-            }
-          }
-        } catch (e) {
-          if (wrap.isConnected) verseEl.textContent = 'Failed to load.';
-        }
-      }
-    }
-
-    // INSIGHT
-    const insightCache = {};
-
-    async function toggleInsight(el) {
-      const wrap = el.closest('.verse-wrap');
-      const insightEl = wrap.querySelector('.insight');
-
-      // If already showing, collapse
-      if (insightEl.classList.contains('open')) {
-        insightEl.classList.remove('open');
-        insightEl.textContent = '';
-        return;
-      }
-
-      const bi = wrap.dataset.bi;
-      const ch = wrap.dataset.ch;
-      const v = wrap.dataset.v;
-      const key = bi + ':' + ch + ':' + v;
-
-      // Check local cache
-      if (insightCache[key]) {
-        insightEl.textContent = insightCache[key];
-        insightEl.classList.add('open');
-        return;
-      }
-
-      // Show loading
-      insightEl.textContent = '...';
-      insightEl.classList.add('open');
-
-      try {
-        const res = await fetch('./api/insight/' + bi + '/' + ch + '/' + v);
-        const data = await res.json();
-        insightCache[key] = data.insight;
-        insightEl.textContent = data.insight;
-      } catch (e) {
-        insightEl.textContent = '';
-        insightEl.classList.remove('open');
-      }
-    }
-
-    async function toggleAll(el) {
-      const scroll = el.closest('.chapter-scroll');
-      const wraps = scroll.querySelectorAll('.verse-wrap');
-      const anyOpen = scroll.querySelector('.insight.open');
-
-      if (anyOpen) {
-        // Simplify
-        wraps.forEach(w => {
-          const ins = w.querySelector('.insight');
-          ins.classList.remove('open');
-          ins.textContent = '';
-        });
-        el.textContent = 'Expand';
-      } else {
-        // Expand all
-        el.textContent = 'Simplify';
-        for (const w of wraps) {
-          const ins = w.querySelector('.insight');
-          if (ins.classList.contains('open')) continue;
-          const bi = w.dataset.bi, ch = w.dataset.ch, v = w.dataset.v;
-          const key = bi + ':' + ch + ':' + v;
-          if (insightCache[key]) {
-            ins.textContent = insightCache[key];
-            ins.classList.add('open');
-          } else {
-            ins.textContent = '...';
-            ins.classList.add('open');
-            try {
-              const res = await fetch('./api/insight/' + bi + '/' + ch + '/' + v);
-              const data = await res.json();
-              insightCache[key] = data.insight;
-              ins.textContent = data.insight;
-            } catch (e) {
-              ins.textContent = '';
-              ins.classList.remove('open');
-            }
-          }
-        }
+      if (scroll.isConnected && scroll.dataset.p == p) {
+        const spacer = document.createElement('div');
+        spacer.className = 'bottom-spacer';
+        scroll.appendChild(spacer);
       }
     }
 
@@ -316,33 +173,9 @@
       track.style.transition = 'none';
       track.style.transform = 'translateX(-33.333%)';
       updateLabel();
-      prefetchNeighborBooks();
     }
 
-    function prefetchNeighborBooks() {
-      const cur = ALL[pos];
-      if (cur.bi > 0) prefetchBook(cur.bi - 1);
-      if (cur.bi < 65) prefetchBook(cur.bi + 1);
-      if (cur.ch <= 1 && cur.bi > 1) prefetchBook(cur.bi - 2);
-      if (cur.ch >= CHS[cur.bi] - 2 && cur.bi < 64) prefetchBook(cur.bi + 2);
-    }
-
-    async function jumpTo() {
-      const e = ALL[pos];
-      if (!bookCache[e.bi]) {
-        loadingEl.style.display = 'flex';
-        readingView.style.display = 'none';
-        await loadBook(e.bi);
-        loadingEl.style.display = 'none';
-        readingView.style.display = 'block';
-      }
-      const prevE = pos > 0 ? ALL[pos - 1] : null;
-      const nextE = pos < TOTAL - 1 ? ALL[pos + 1] : null;
-      if (prevE && !bookCache[prevE.bi]) loadBook(prevE.bi);
-      if (nextE && !bookCache[nextE.bi]) loadBook(nextE.bi);
-      fillAllPanels();
-    }
-
+    // SWIPE
     async function slideTo(dir) {
       if (sliding) return;
       const np = pos + dir;
@@ -352,24 +185,13 @@
         return;
       }
       sliding = true;
-      const nextE = ALL[np];
-      if (!bookCache[nextE.bi]) await loadBook(nextE.bi);
-
       track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
       track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
-
       await new Promise(r => setTimeout(r, 310));
       pos = np;
-
-      const farE = dir === 1
-        ? (pos + 1 < TOTAL ? ALL[pos + 1] : null)
-        : (pos - 1 >= 0 ? ALL[pos - 1] : null);
-      if (farE && !bookCache[farE.bi]) await loadBook(farE.bi);
-
       requestAnimationFrame(() => { fillAllPanels(); sliding = false; });
     }
 
-    // SWIPE
     let sx = 0, sy = 0, dx = 0, drag = false, horiz = null;
     container.addEventListener('touchstart', e => {
       if (navOpen || sliding) return;
@@ -394,16 +216,9 @@
     });
 
     // INIT
-    (async () => {
-      buildNavOnce();
-      const cur = ALL[pos];
-      await loadBook(cur.bi);
-      if (pos > 0) loadBook(ALL[pos - 1].bi);
-      if (pos < TOTAL - 1) loadBook(ALL[pos + 1].bi);
-      fillAllPanels();
-      loadingEl.style.display = 'none';
-      readingView.style.display = 'block';
-    })();
+    fillAllPanels();
+    loadingEl.style.display = 'none';
+    readingView.style.display = 'block';
   </script>
 </body>
 </html>

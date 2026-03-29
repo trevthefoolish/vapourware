@@ -69,26 +69,18 @@ body {
   }
 }
 
-/* HEADER — fixed, tight */
+/* HEADER */
 .header {
   padding: 44px 56px 0 56px;
   flex-shrink: 0;
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
-  display: flex; align-items: baseline; gap: 14px;
   font-weight: 500; letter-spacing: 0.02em;
   background: var(--bg);
 }
-#headerTitle { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-#headerTitle:active { opacity: 0.4; }
-.header-sub {
-  font-weight: 400; color: var(--text-muted);
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.header-sub:active { opacity: 0.4; }
+.header:active { opacity: 0.4; }
 
 /* READING */
 .reading-view { flex: 1; overflow: hidden; position: relative; }
-
 .reading-view::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0;
   height: 28px; z-index: 10; pointer-events: none;
@@ -99,7 +91,6 @@ body {
   height: 80px; z-index: 10; pointer-events: none;
   background: linear-gradient(transparent, var(--fade));
 }
-
 .swipe-container { height: 100%; overflow: hidden; }
 .swipe-track {
   display: flex; height: 100%; width: 300%;
@@ -115,28 +106,8 @@ body {
   overscroll-behavior-y: contain;
   padding: 12px 56px 0 56px;
 }
-
-.verse {
-  padding-bottom: 0;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.verse:active { opacity: 0.4; }
 .verse-wrap { padding-bottom: 28px; }
-.insight {
-  display: none;
-  color: var(--text-muted);
-  padding-top: 8px;
-}
-.insight.open { display: block; }
-.expand-all {
-  padding: 20px 0 0 0;
-  cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
-}
-.expand-all:active { opacity: 0.4; }
-.claude-verse { cursor: default; }
-.claude-verse:active { opacity: 1; }
-.claude-note { display: none; }
-.claude-note.open { display: block; }
+.note { color: var(--text-muted); padding-top: 8px; }
 .bottom-spacer { height: 120px; flex-shrink: 0; }
 
 /* LOADING */
@@ -153,14 +124,10 @@ body {
 }
 .nav-title {
   padding: 44px 56px 0 56px;
-  flex-shrink: 0;
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
-  display: flex; align-items: baseline; gap: 14px;
   font-weight: 500; letter-spacing: 0.02em;
 }
 .nav-title:active { opacity: 0.4; }
-.nav-title-sub { font-weight: 400; color: var(--text-muted); }
-
 .nav-book {
   padding: 10px 56px;
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;

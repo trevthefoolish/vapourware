@@ -6,16 +6,12 @@ const { Anthropic } = require("@anthropic-ai/sdk");
 
 const app = express();
 app.use(compression());
-app.use(express.json());
 
 const client = new Anthropic();
+const CACHE_DIR = path.join(__dirname, "renders");
+if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
 
-const INSIGHTS_DIR = path.join(__dirname, "insights");
-const RENDERS_DIR = path.join(__dirname, "renders");
-if (!fs.existsSync(INSIGHTS_DIR)) fs.mkdirSync(INSIGHTS_DIR);
-if (!fs.existsSync(RENDERS_DIR)) fs.mkdirSync(RENDERS_DIR);
-
-const BOOK_NAMES = [
+const NAMES = [
   "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua",
   "Judges","Ruth","1 Samuel","2 Samuel","1 Kings","2 Kings",
   "1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job",
@@ -29,95 +25,47 @@ const BOOK_NAMES = [
   "Hebrews","James","1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"
 ];
 
-function getCache(dir, bi) {
-  const file = path.join(dir, bi + ".json");
-  if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
-  return {};
+function getCache(bi) {
+  const f = path.join(CACHE_DIR, bi + ".json");
+  return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : {};
 }
 
-function saveCache(dir, bi, cache) {
-  fs.writeFileSync(path.join(dir, bi + ".json"), JSON.stringify(cache));
+function saveCache(bi, cache) {
+  fs.writeFileSync(path.join(CACHE_DIR, bi + ".json"), JSON.stringify(cache));
 }
 
-function getVerse(bi, ch, v) {
-  const bookFile = path.join(__dirname, "books", bi + ".json");
-  if (!fs.existsSync(bookFile)) return null;
-  const chapters = JSON.parse(fs.readFileSync(bookFile, "utf8"));
-  if (!chapters[ch] || !chapters[ch][v]) return null;
-  return chapters[ch][v];
-}
-
-function clean(text) {
-  return text.trim().replace(/[*_]/g, '');
-}
-
-// ===== INSIGHT (tap verse in KJV mode) =====
-app.get("/api/insight/:bi/:ch/:v", async (req, res) => {
-  const bi = parseInt(req.params.bi), ch = parseInt(req.params.ch), v = parseInt(req.params.v);
-  const key = ch + ":" + v;
-
-  const cache = getCache(INSIGHTS_DIR, bi);
-  if (cache[key]) return res.json({ insight: cache[key], cached: true });
-
-  const verseText = getVerse(bi, ch, v);
-  if (!verseText) return res.status(404).json({ error: "Verse not found" });
-
-  try {
-    const msg = await client.messages.create({
-      model: "claude_sonnet_4_6",
-      max_tokens: 200,
-      messages: [{ role: "user", content: `"${verseText}" — ${BOOK_NAMES[bi]} ${ch+1}:${v+1}\n\nConsider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then give a one-sentence pithy, memorable tidbit that primarily illuminates what is lost in translation. The voice should always be pastoral and never academic. No labels, no quotes, no markdown.` }]
-    });
-    const insight = clean(msg.content[0].text);
-    cache[key] = insight;
-    saveCache(INSIGHTS_DIR, bi, cache);
-    res.json({ insight, cached: false });
-  } catch (e) {
-    console.error("Insight error:", e.message);
-    res.status(500).json({ error: "Failed to generate" });
-  }
-});
-
-// ===== RENDER (Claude modern English + note) =====
 app.get("/api/render/:bi/:ch/:v", async (req, res) => {
-  const bi = parseInt(req.params.bi), ch = parseInt(req.params.ch), v = parseInt(req.params.v);
-  const key = ch + ":" + v;
+  const bi = +req.params.bi, ch = +req.params.ch, v = +req.params.v;
+  if (bi < 0 || bi >= 66 || !NAMES[bi]) return res.status(404).json({ error: "Not found" });
 
-  const cache = getCache(RENDERS_DIR, bi);
+  const key = ch + ":" + v;
+  const cache = getCache(bi);
   if (cache[key]) return res.json({ ...cache[key], cached: true });
 
-  const verseText = getVerse(bi, ch, v);
-  if (!verseText) return res.status(404).json({ error: "Verse not found" });
+  const ref = NAMES[bi] + " " + (ch + 1) + ":" + (v + 1);
 
   try {
     const msg = await client.messages.create({
       model: "claude_sonnet_4_6",
       max_tokens: 400,
-      messages: [{ role: "user", content: `"${verseText}" — ${BOOK_NAMES[bi]} ${ch+1}:${v+1}\n\nConsider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then write your own modern English rendering that best conveys the original meaning. Finally give a pithy, memorable tidbit that primarily illuminates your translation decisions. The voice should always be pastoral pointing us to Jesus and never academic pointing us to grammar. Never use archaic English words in your note — if the reader wouldn't say it in conversation, don't write it.\n\nRespond in exactly this format (two lines, no labels):\nYour modern rendering here\n---\nYour note here` }]
+      messages: [{ role: "user", content:
+        `${ref}\n\nConsider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then write your own modern English rendering that best conveys the original meaning. Finally give a pithy, memorable tidbit that primarily illuminates your translation decisions. The voice should always be pastoral pointing us to Jesus and never academic pointing us to grammar. Never use archaic English words in your note — if the reader wouldn't say it in conversation, don't write it.\n\nRespond in exactly this format (two lines, no labels):\nYour modern rendering here\n---\nYour note here`
+      }]
     });
-    const text = clean(msg.content[0].text);
-    const sep = text.indexOf('---');
-    let rendering, note;
-    if (sep !== -1) {
-      rendering = text.substring(0, sep).trim();
-      note = text.substring(sep + 3).trim();
-    } else {
-      // Fallback: split on last sentence
-      rendering = text;
-      note = '';
-    }
+    const text = msg.content[0].text.trim().replace(/[*_]/g, "");
+    const sep = text.indexOf("---");
+    const rendering = sep !== -1 ? text.substring(0, sep).trim() : text;
+    const note = sep !== -1 ? text.substring(sep + 3).trim() : "";
     const result = { rendering, note };
     cache[key] = result;
-    saveCache(RENDERS_DIR, bi, cache);
+    saveCache(bi, cache);
     res.json({ ...result, cached: false });
   } catch (e) {
-    console.error("Render error:", e.message);
-    res.status(500).json({ error: "Failed to generate" });
+    console.error(e.message);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
-// Static files
 app.use(express.static("."));
 app.get("/{*path}", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-
 app.listen(5000, "0.0.0.0", () => console.log("listening on 5000"));
