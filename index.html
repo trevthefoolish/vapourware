@@ -20,9 +20,9 @@
   </div>
 
   <div class="mobile-content">
-    <div class="header" onclick="openNav()">
-      <span id="headerTitle">ECCLESIASTES 1</span>
-      <span class="header-sub">KJV</span>
+    <div class="header">
+      <span id="headerTitle" onclick="openNav()">ECCLESIASTES 1</span>
+      <span class="header-sub" id="modeToggle" onclick="toggleMode(event)">KJV</span>
     </div>
 
     <div class="reading-view" id="readingView">
@@ -73,7 +73,10 @@
     let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0);
     let navOpen = false;
     let sliding = false;
+    let mode = 'kjv'; // 'kjv' or 'claude'
     const bookCache = {};
+    const renderCache = {}; // key: 'bi:ch:v' → {rendering, note}
+    const modeToggle = document.getElementById('modeToggle');
 
     const track = document.getElementById('swipeTrack');
     const container = document.getElementById('swipeContainer');
@@ -150,21 +153,78 @@
       readingView.style.display = 'block';
     }
 
+    // MODE TOGGLE
+    function toggleMode(e) {
+      e.stopPropagation();
+      mode = mode === 'kjv' ? 'claude' : 'kjv';
+      modeToggle.textContent = mode === 'kjv' ? 'KJV' : 'CLAUDE';
+      fillAllPanels();
+    }
+
     // PANELS
     function fillPanel(panel, p) {
       const verses = (p !== null) ? getVerses(p) : null;
       if (!verses) { panel.innerHTML = '<div class="chapter-scroll"></div>'; return; }
       const e = ALL[p];
       let h = '<div class="chapter-scroll" data-panel-bi="' + e.bi + '" data-panel-ch="' + e.ch + '">';
-      for (let i = 0; i < verses.length; i++) {
-        h += '<div class="verse-wrap" data-bi="' + e.bi + '" data-ch="' + e.ch + '" data-v="' + i + '">';
-        h += '<p class="verse" onclick="toggleInsight(this)">' + verses[i] + '</p>';
-        h += '<p class="insight"></p>';
-        h += '</div>';
+      if (mode === 'kjv') {
+        for (let i = 0; i < verses.length; i++) {
+          h += '<div class="verse-wrap" data-bi="' + e.bi + '" data-ch="' + e.ch + '" data-v="' + i + '">';
+          h += '<p class="verse" onclick="toggleInsight(this)">' + verses[i] + '</p>';
+          h += '<p class="insight"></p>';
+          h += '</div>';
+        }
+        h += '<p class="expand-all" onclick="toggleAll(this)">Expand</p>';
+      } else {
+        for (let i = 0; i < verses.length; i++) {
+          h += '<div class="verse-wrap claude-wrap" data-bi="' + e.bi + '" data-ch="' + e.ch + '" data-v="' + i + '">';
+          h += '<p class="verse claude-verse">...</p>';
+          h += '<p class="insight claude-note"></p>';
+          h += '</div>';
+        }
       }
-      h += '<p class="expand-all" onclick="toggleAll(this)">Expand</p>';
       h += '<div class="bottom-spacer"></div></div>';
       panel.innerHTML = h;
+
+      // If Claude mode, start loading renderings
+      if (mode === 'claude' && p !== null) {
+        loadRenderings(panel, e.bi, e.ch, verses.length);
+      }
+    }
+
+    async function loadRenderings(panel, bi, ch, count) {
+      for (let v = 0; v < count; v++) {
+        const wrap = panel.querySelector('[data-bi="' + bi + '"][data-ch="' + ch + '"][data-v="' + v + '"]');
+        if (!wrap) continue;
+        const verseEl = wrap.querySelector('.claude-verse');
+        const noteEl = wrap.querySelector('.claude-note');
+        const key = bi + ':' + ch + ':' + v;
+
+        if (renderCache[key]) {
+          verseEl.textContent = renderCache[key].rendering;
+          if (renderCache[key].note) {
+            noteEl.textContent = renderCache[key].note;
+            noteEl.classList.add('open');
+          }
+          continue;
+        }
+
+        try {
+          const res = await fetch('./api/render/' + bi + '/' + ch + '/' + v);
+          const data = await res.json();
+          renderCache[key] = { rendering: data.rendering, note: data.note };
+          // Only update if panel still showing same content
+          if (wrap.isConnected) {
+            verseEl.textContent = data.rendering;
+            if (data.note) {
+              noteEl.textContent = data.note;
+              noteEl.classList.add('open');
+            }
+          }
+        } catch (e) {
+          if (wrap.isConnected) verseEl.textContent = 'Failed to load.';
+        }
+      }
     }
 
     // INSIGHT

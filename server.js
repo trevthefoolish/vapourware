@@ -9,8 +9,11 @@ app.use(compression());
 app.use(express.json());
 
 const client = new Anthropic();
-const CACHE_DIR = path.join(__dirname, "insights");
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
+
+const INSIGHTS_DIR = path.join(__dirname, "insights");
+const RENDERS_DIR = path.join(__dirname, "renders");
+if (!fs.existsSync(INSIGHTS_DIR)) fs.mkdirSync(INSIGHTS_DIR);
+if (!fs.existsSync(RENDERS_DIR)) fs.mkdirSync(RENDERS_DIR);
 
 const BOOK_NAMES = [
   "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua",
@@ -26,64 +29,90 @@ const BOOK_NAMES = [
   "Hebrews","James","1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"
 ];
 
-// Load or create the cache file for a book
-function getCache(bi) {
-  const file = path.join(CACHE_DIR, bi + ".json");
-  if (fs.existsSync(file)) {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  }
+function getCache(dir, bi) {
+  const file = path.join(dir, bi + ".json");
+  if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
   return {};
 }
 
-function saveCache(bi, cache) {
-  fs.writeFileSync(path.join(CACHE_DIR, bi + ".json"), JSON.stringify(cache));
+function saveCache(dir, bi, cache) {
+  fs.writeFileSync(path.join(dir, bi + ".json"), JSON.stringify(cache));
 }
 
-// Generate a single verse insight
-async function generateInsight(bookName, chapter, verseNum, verseText) {
-  const msg = await client.messages.create({
-    model: "claude_sonnet_4_6",
-    max_tokens: 200,
-    messages: [{
-      role: "user",
-      content: `"${verseText}" — ${bookName} ${chapter}:${verseNum}
-
-Consider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then give a one-sentence pithy, memorable tidbit that primarily illuminates what is lost in translation. The voice should always be pastoral and never academic. No labels, no quotes, no markdown.`
-    }]
-  });
-  return msg.content[0].text.trim().replace(/[*_]/g, '');
+function getVerse(bi, ch, v) {
+  const bookFile = path.join(__dirname, "books", bi + ".json");
+  if (!fs.existsSync(bookFile)) return null;
+  const chapters = JSON.parse(fs.readFileSync(bookFile, "utf8"));
+  if (!chapters[ch] || !chapters[ch][v]) return null;
+  return chapters[ch][v];
 }
 
-// API: get insight for a specific verse
+function clean(text) {
+  return text.trim().replace(/[*_]/g, '');
+}
+
+// ===== INSIGHT (tap verse in KJV mode) =====
 app.get("/api/insight/:bi/:ch/:v", async (req, res) => {
-  const bi = parseInt(req.params.bi);
-  const ch = parseInt(req.params.ch);
-  const v = parseInt(req.params.v);
+  const bi = parseInt(req.params.bi), ch = parseInt(req.params.ch), v = parseInt(req.params.v);
   const key = ch + ":" + v;
 
-  // Check cache
-  const cache = getCache(bi);
-  if (cache[key]) {
-    return res.json({ insight: cache[key], cached: true });
-  }
+  const cache = getCache(INSIGHTS_DIR, bi);
+  if (cache[key]) return res.json({ insight: cache[key], cached: true });
 
-  // Load the verse text
-  const bookFile = path.join(__dirname, "books", bi + ".json");
-  if (!fs.existsSync(bookFile)) return res.status(404).json({ error: "Book not found" });
-  const chapters = JSON.parse(fs.readFileSync(bookFile, "utf8"));
-  if (!chapters[ch] || !chapters[ch][v]) return res.status(404).json({ error: "Verse not found" });
-
-  const verseText = chapters[ch][v];
-  const bookName = BOOK_NAMES[bi];
+  const verseText = getVerse(bi, ch, v);
+  if (!verseText) return res.status(404).json({ error: "Verse not found" });
 
   try {
-    const insight = await generateInsight(bookName, ch + 1, v + 1, verseText);
+    const msg = await client.messages.create({
+      model: "claude_sonnet_4_6",
+      max_tokens: 200,
+      messages: [{ role: "user", content: `"${verseText}" — ${BOOK_NAMES[bi]} ${ch+1}:${v+1}\n\nConsider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then give a one-sentence pithy, memorable tidbit that primarily illuminates what is lost in translation. The voice should always be pastoral and never academic. No labels, no quotes, no markdown.` }]
+    });
+    const insight = clean(msg.content[0].text);
     cache[key] = insight;
-    saveCache(bi, cache);
+    saveCache(INSIGHTS_DIR, bi, cache);
     res.json({ insight, cached: false });
   } catch (e) {
-    console.error("LLM error:", e.message);
-    res.status(500).json({ error: "Failed to generate insight" });
+    console.error("Insight error:", e.message);
+    res.status(500).json({ error: "Failed to generate" });
+  }
+});
+
+// ===== RENDER (Claude modern English + note) =====
+app.get("/api/render/:bi/:ch/:v", async (req, res) => {
+  const bi = parseInt(req.params.bi), ch = parseInt(req.params.ch), v = parseInt(req.params.v);
+  const key = ch + ":" + v;
+
+  const cache = getCache(RENDERS_DIR, bi);
+  if (cache[key]) return res.json({ ...cache[key], cached: true });
+
+  const verseText = getVerse(bi, ch, v);
+  if (!verseText) return res.status(404).json({ error: "Verse not found" });
+
+  try {
+    const msg = await client.messages.create({
+      model: "claude_sonnet_4_6",
+      max_tokens: 400,
+      messages: [{ role: "user", content: `"${verseText}" — ${BOOK_NAMES[bi]} ${ch+1}:${v+1}\n\nConsider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then write your own modern English rendering that best conveys the original meaning. Finally give a pithy, memorable tidbit that primarily illuminates your translation decisions. The voice should always be pastoral pointing us to Jesus and never academic pointing us to grammar.\n\nRespond in exactly this format (two lines, no labels):\nYour modern rendering here\n---\nYour note here` }]
+    });
+    const text = clean(msg.content[0].text);
+    const sep = text.indexOf('---');
+    let rendering, note;
+    if (sep !== -1) {
+      rendering = text.substring(0, sep).trim();
+      note = text.substring(sep + 3).trim();
+    } else {
+      // Fallback: split on last sentence
+      rendering = text;
+      note = '';
+    }
+    const result = { rendering, note };
+    cache[key] = result;
+    saveCache(RENDERS_DIR, bi, cache);
+    res.json({ ...result, cached: false });
+  } catch (e) {
+    console.error("Render error:", e.message);
+    res.status(500).json({ error: "Failed to generate" });
   }
 });
 
