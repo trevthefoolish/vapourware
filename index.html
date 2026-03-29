@@ -194,7 +194,12 @@
         track.style.transform='translateX(-33.333%)';}
     });
 
-    // INIT — load Bible then render
+    // SERVICE WORKER
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+
+    // INIT
     (async () => {
       buildNavOnce();
       try {
