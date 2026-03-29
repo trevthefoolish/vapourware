@@ -48,7 +48,7 @@ async function generateInsight(bookName, chapter, verseNum, verseText) {
       role: "user",
       content: `"${verseText}" — ${bookName} ${chapter}:${verseNum}
 
-One sentence. A genuinely surprising fact about this verse — etymology, archaeology, cultural context, or a connection elsewhere in scripture. Maximum 20 words. No quotation marks.`
+Distill this verse into one sharp, surprising sentence that changes how someone reads it. Not a summary. Not a definition. A revelation — the kind of thing a scholar would whisper to you in the margin. Could be an etymology that reframes the meaning, an archaeological find, a cultural context invisible to modern readers, or a hidden connection across scripture. Write it like a memo: direct, confident, no hedging, no "this verse" or "interestingly." Under 25 words. Plain text, no formatting.`
     }]
   });
   return msg.content[0].text.trim().replace(/[*_]/g, '');
