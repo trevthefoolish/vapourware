@@ -46,20 +46,9 @@ async function generateInsight(bookName, chapter, verseNum, verseText) {
     max_tokens: 200,
     messages: [{
       role: "user",
-      content: `You write marginal notes for a Bible. One sentence per verse. Sharp, learned, surprising. Examples:
+      content: `"${verseText}" — ${bookName} ${chapter}:${verseNum}
 
-"The words of the Preacher, the son of David, king in Jerusalem." → Qohelet isn't a name but a title — "the assembler" — making the author of this book permanently anonymous.
-
-"Vanity of vanities, saith the Preacher, vanity of vanities; all is vanity." → Hevel means breath, vapor, mist — not worthless but weightless, gone before you close your hand.
-
-"In the beginning God created the heaven and the earth." → Bara is reserved for God alone in Hebrew — humans build, form, shape, but only God creates from nothing.
-
-"The sun also ariseth, and the sun goeth down" → Ernest Hemingway took this line as a novel title because he saw it as the bleakest sentence ever written.
-
-Now write one for:
-"${verseText}" (${bookName} ${chapter}:${verseNum})
-
-One sentence only. No labels, no quotes around it, no markdown.`
+Consider this verse's heritage through Hebrew, Aramaic, Greek, Latin, and English. Then give a one-sentence pithy, memorable tidbit that primarily illuminates what is lost in translation. The voice should always be pastoral and never academic. No labels, no quotes, no markdown.`
     }]
   });
   return msg.content[0].text.trim().replace(/[*_]/g, '');
