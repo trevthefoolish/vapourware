@@ -20,9 +20,23 @@
   </div>
 
   <div class="mobile-content">
-    <div class="header" onclick="openNav()">
-      <span id="headerTitle">ECCLESIASTES 1</span>
-      <span class="header-sub">KJV</span>
+    <div class="header">
+      <div class="toolbar">
+        <button class="toolbar-btn" id="btnClose" aria-label="Close">
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <line x1="1" y1="1" x2="16" y2="16"/><line x1="16" y1="1" x2="1" y2="16"/>
+          </svg>
+        </button>
+        <button class="toolbar-btn" id="btnShare" aria-label="Share">
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8.5 1v10"/><path d="M4 5l4.5-4 4.5 4"/><path d="M14 10v4.5a1 1 0 01-1 1H4a1 1 0 01-1-1V10"/>
+          </svg>
+        </button>
+      </div>
+      <div class="title-row" onclick="openNav()">
+        <span id="headerTitle">ECCLESIASTES 1</span>
+        <span class="header-sub">KJV</span>
+      </div>
     </div>
     <div class="reading-view" id="readingView">
       <div class="swipe-container" id="swipeContainer">
@@ -35,9 +49,18 @@
     </div>
 
     <div class="nav-view" id="navView">
-      <div class="nav-header" onclick="closeNav()">
-        <span id="navTitle">ECCLESIASTES 1</span>
-        <span class="header-sub">KJV</span>
+      <div class="nav-header">
+        <div class="toolbar">
+          <button class="toolbar-btn" onclick="closeNav()" aria-label="Close">
+            <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <line x1="1" y1="1" x2="16" y2="16"/><line x1="16" y1="1" x2="1" y2="16"/>
+            </svg>
+          </button>
+        </div>
+        <div class="title-row">
+          <span id="navTitle">ECCLESIASTES 1</span>
+          <span class="header-sub">KJV</span>
+        </div>
       </div>
       <div id="navInner"></div>
       <div class="nav-end"></div>
@@ -131,6 +154,22 @@
     }
 
     const headerEl = document.querySelector('.header');
+
+    document.getElementById('btnClose').addEventListener('click', function() {
+      if (navOpen) closeNav();
+      else openNav();
+    });
+
+    document.getElementById('btnShare').addEventListener('click', async function() {
+      const title = lbl(pos);
+      const text = title + ' (KJV)';
+      const url = window.location.href;
+      if (navigator.share) {
+        try { await navigator.share({ title, text, url }); } catch(e) {}
+      } else {
+        try { await navigator.clipboard.writeText(url); } catch(e) {}
+      }
+    });
 
     function openNav() {
       navOpen = true;
