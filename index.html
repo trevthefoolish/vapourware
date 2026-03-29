@@ -20,10 +20,6 @@
   </div>
 
   <div class="mobile-content">
-    <div class="header" onclick="openNav()">
-      <span id="headerTitle">ECCLESIASTES 1</span>
-      <span class="header-sub">KJV</span>
-    </div>
     <div class="reading-view" id="readingView">
       <div class="swipe-container" id="swipeContainer">
         <div class="swipe-track" id="swipeTrack">
@@ -35,9 +31,9 @@
     </div>
 
     <div class="nav-view" id="navView">
-      <div class="nav-header" onclick="closeNav()">
-        <span id="navTitle">ECCLESIASTES 1</span>
-        <span class="header-sub">KJV</span>
+      <div class="nav-title" id="navTitle" onclick="closeNav()">
+        <span id="navTitleText">ECCLESIASTES 1</span>
+        <span class="ch-title-sub">KJV</span>
       </div>
       <div id="navInner"></div>
       <div class="nav-end"></div>
@@ -79,14 +75,13 @@
     const container = document.getElementById('swipeContainer');
     const readingView = document.getElementById('readingView');
     const navView = document.getElementById('navView');
-    const navTitle = document.getElementById('navTitle');
+    const navTitleText = document.getElementById('navTitleText');
     const navInner = document.getElementById('navInner');
     const loadingEl = document.getElementById('loading');
     const panels = [document.getElementById('p0'), document.getElementById('p1'), document.getElementById('p2')];
 
     function lbl(p) { const e = ALL[p]; return NAMES[e.bi].toUpperCase() + ' ' + (e.ch + 1); }
 
-    // ===== BOOK LOADING =====
     async function loadBook(bi) {
       if (bookCache[bi]) return bookCache[bi];
       const res = await fetch('./books/' + bi + '.json');
@@ -106,7 +101,7 @@
       if (bi >= 0 && bi < 66 && !bookCache[bi]) loadBook(bi);
     }
 
-    // ===== NAV =====
+    // NAV
     function buildNavOnce() {
       let html = '';
       NAMES.forEach((name, bi) => {
@@ -130,13 +125,10 @@
       });
     }
 
-    const headerEl = document.querySelector('.header');
-
     function openNav() {
       navOpen = true;
-      navTitle.textContent = lbl(pos);
+      navTitleText.textContent = lbl(pos);
       markCurrent();
-      headerEl.style.display = 'none';
       readingView.style.display = 'none';
       navView.style.display = 'block';
       const el = document.getElementById('nb-' + ALL[pos].bi);
@@ -146,16 +138,16 @@
     function closeNav() {
       navOpen = false;
       navView.style.display = 'none';
-      headerEl.style.display = '';
       readingView.style.display = 'block';
     }
 
-    // ===== PANEL RENDERING =====
-    // Header is part of the scrollable content — same flow as verses
+    // PANELS — title is inline, part of the same scroll as verses
     function fillPanel(panel, p) {
       const verses = (p !== null) ? getVerses(p) : null;
       if (!verses) { panel.innerHTML = '<div class="chapter-scroll"></div>'; return; }
+      const title = lbl(p);
       let h = '<div class="chapter-scroll">';
+      h += '<div class="ch-title" onclick="openNav()"><span>' + title + '</span><span class="ch-title-sub">KJV</span></div>';
       for (let i = 0; i < verses.length; i++) h += '<p class="verse">' + verses[i] + '</p>';
       h += '<div class="bottom-spacer"></div></div>';
       panel.innerHTML = h;
@@ -167,9 +159,7 @@
       fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
       track.style.transition = 'none';
       track.style.transform = 'translateX(-33.333%)';
-      const t = lbl(pos);
-      headerTitle.textContent = t;
-      document.title = t;
+      document.title = lbl(pos);
       prefetchNeighborBooks();
     }
 
@@ -181,7 +171,6 @@
       if (cur.ch >= CHS[cur.bi] - 2 && cur.bi < 64) prefetchBook(cur.bi + 2);
     }
 
-    // ===== JUMP =====
     async function jumpTo() {
       const e = ALL[pos];
       if (!bookCache[e.bi]) {
@@ -198,7 +187,6 @@
       fillAllPanels();
     }
 
-    // ===== SLIDE =====
     async function slideTo(dir) {
       if (sliding) return;
       const np = pos + dir;
@@ -228,7 +216,7 @@
       });
     }
 
-    // ===== SWIPE =====
+    // SWIPE
     let sx = 0, sy = 0, dx = 0, drag = false, horiz = null;
     container.addEventListener('touchstart', e => {
       if (navOpen || sliding) return;
@@ -252,7 +240,7 @@
         track.style.transform = 'translateX(-33.333%)'; }
     });
 
-    // ===== INIT =====
+    // INIT
     (async () => {
       buildNavOnce();
       const cur = ALL[pos];
