@@ -20,6 +20,10 @@
   </div>
 
   <div class="mobile-content">
+    <div class="header" onclick="openNav()">
+      <span class="chapter-header-title" id="headerTitle">ECCLESIASTES 1</span>
+      <span class="chapter-header-sub">KJV</span>
+    </div>
     <div class="reading-view" id="readingView">
       <div class="swipe-container" id="swipeContainer">
         <div class="swipe-track" id="swipeTrack">
@@ -147,9 +151,7 @@
     function fillPanel(panel, p) {
       const verses = (p !== null) ? getVerses(p) : null;
       if (!verses) { panel.innerHTML = '<div class="chapter-scroll"></div>'; return; }
-      const title = lbl(p);
       let h = '<div class="chapter-scroll">';
-      h += '<div class="chapter-header" onclick="openNav()"><span class="chapter-header-title">' + title + '</span><span class="chapter-header-sub">KJV</span></div>';
       for (let i = 0; i < verses.length; i++) h += '<p class="verse">' + verses[i] + '</p>';
       h += '<div class="bottom-spacer"></div></div>';
       panel.innerHTML = h;
@@ -161,7 +163,9 @@
       fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
       track.style.transition = 'none';
       track.style.transform = 'translateX(-33.333%)';
-      document.title = lbl(pos);
+      const t = lbl(pos);
+      headerTitle.textContent = t;
+      document.title = t;
       prefetchNeighborBooks();
     }
 
