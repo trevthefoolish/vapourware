@@ -88,6 +88,13 @@ body {
   display: flex; justify-content: center;
 }
 .nav-inner { width: 260px; padding-bottom: 80px; }
+.nav-label {
+  font-size: 10px; line-height: 15px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 20px 0 12px 0;
+}
+.nav-label:first-child { padding-top: 0; }
+
 .nav-book {
   font-size: 14px; line-height: 20px; padding: 10px 0;
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;

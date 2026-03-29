@@ -65,7 +65,7 @@
 
     let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0);
     let navOpen = false;
-
+    let sliding = false;
 
     const track = document.getElementById('swipeTrack');
     const container = document.getElementById('swipeContainer');
@@ -93,10 +93,12 @@
 
     // NAV
     function buildNavOnce() {
-      let html = '';
+      let html = '<div class="nav-label">Old Testament</div>';
       NAMES.forEach((name, bi) => {
+        if (bi === 39) html += '<div class="nav-label">New Testament</div>';
         html += '<div class="nav-book" id="nb-' + bi + '" data-bi="' + bi + '">' + name + '</div>';
       });
+      html += '<div class="nav-end"></div>';
       navInner.innerHTML = html;
       navInner.addEventListener('click', function(e) {
         const el = e.target.closest('.nav-book');
@@ -149,39 +151,58 @@
       track.style.transition = 'none';
       track.style.transform = 'translateX(-33.333%)';
       updateLabel();
+      loadNeighbors();
+    }
 
-      // Prefetch neighbors (won't block render)
-      getVerses(pos - 1).then(v => {
-        const el = track.querySelector('[data-slot="0"]'); if (el) el.innerHTML = panelHTML(v);
-      });
-      getVerses(pos + 1).then(v => {
-        const el = track.querySelector('[data-slot="2"]'); if (el) el.innerHTML = panelHTML(v);
-      });
+    async function loadNeighbors() {
+      const [prev, next] = await Promise.all([getVerses(pos - 1), getVerses(pos + 1)]);
+      const el0 = track.querySelector('[data-slot="0"]');
+      const el2 = track.querySelector('[data-slot="2"]');
+      if (el0) el0.innerHTML = panelHTML(prev);
+      if (el2) el2.innerHTML = panelHTML(next);
     }
 
     async function slideTo(dir) {
+      if (sliding) return;
       const np = pos + dir;
       if (np < 0 || np >= TOTAL) {
         track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
         track.style.transform = 'translateX(-33.333%)';
         return;
       }
+      sliding = true;
       track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
       track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
-      await new Promise(r => setTimeout(r, 300));
+
+      // While animating, prefetch the new neighbors
       pos = np;
-      await render();
+      updateLabel();
+      const [newCur, newPrev, newNext] = await Promise.all([
+        getVerses(pos),
+        getVerses(pos - 1),
+        getVerses(pos + 1),
+        new Promise(r => setTimeout(r, 310)) // wait for animation
+      ]);
+
+      // Rebuild without visible flash — content is already fetched
+      track.innerHTML =
+        '<div class="ch-panel" data-slot="0">' + panelHTML(newPrev) + '</div>' +
+        '<div class="ch-panel" data-slot="1">' + panelHTML(newCur) + '</div>' +
+        '<div class="ch-panel" data-slot="2">' + panelHTML(newNext) + '</div>';
+      track.style.transition = 'none';
+      track.style.transform = 'translateX(-33.333%)';
+      sliding = false;
     }
 
     // SWIPE
     let sx=0,sy=0,dx=0,drag=false,horiz=null;
     container.addEventListener('touchstart', e => {
-      if (navOpen) return;
+      if (navOpen||sliding) return;
       sx=e.touches[0].clientX;sy=e.touches[0].clientY;
       dx=0;drag=true;horiz=null;track.style.transition='none';
     }, {passive:true});
     container.addEventListener('touchmove', e => {
-      if (!drag||navOpen) return;
+      if (!drag||navOpen||sliding) return;
       const mx=e.touches[0].clientX-sx,my=e.touches[0].clientY-sy;
       if (horiz===null&&(Math.abs(mx)>8||Math.abs(my)>8)) horiz=Math.abs(mx)>Math.abs(my);
       if (horiz===false){drag=false;return;}
