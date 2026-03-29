@@ -20,7 +20,6 @@
   </div>
 
   <div class="mobile-content">
-
     <div class="header" onclick="toggle()">
       <span class="header-title" id="headerTitle">ECCLESIASTES 1</span>
       <span class="header-sub">KJV</span>
@@ -39,7 +38,6 @@
     </div>
 
     <div class="loading" id="loading">...</div>
-
   </div>
 
   <script>
@@ -57,20 +55,17 @@
       "Hebrews","James","1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"
     ];
 
-    let BIBLE = null; // loaded async: BIBLE[bookIdx][chapterIdx] = [verse strings]
-
-    // Flat index: every chapter as {bi, ch (0-based)}
-    const CHS = [
-      50,40,27,36,34,24,21,4,31,24,22,25,29,36,10,13,10,42,
+    const CHS = [50,40,27,36,34,24,21,4,31,24,22,25,29,36,10,13,10,42,
       150,31,12,8,66,52,5,48,12,14,3,9,1,4,7,3,3,3,2,14,4,
-      28,16,24,21,28,16,16,13,6,6,4,4,5,3,6,4,3,1,13,5,5,3,5,1,1,1,22
-    ];
+      28,16,24,21,28,16,16,13,6,6,4,4,5,3,6,4,3,1,13,5,5,3,5,1,1,1,22];
+
     const ALL = [];
     CHS.forEach((n, bi) => { for (let c = 0; c < n; c++) ALL.push({ bi, ch: c }); });
     const TOTAL = ALL.length;
 
-    let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0); // Ecclesiastes 1
+    let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0);
     let navOpen = false;
+
 
     const track = document.getElementById('swipeTrack');
     const container = document.getElementById('swipeContainer');
@@ -80,15 +75,20 @@
     const navInner = document.getElementById('navInner');
     const loadingEl = document.getElementById('loading');
 
-    function lbl(p) {
-      const e = ALL[p];
-      return NAMES[e.bi].toUpperCase() + ' ' + (e.ch + 1);
+    function lbl(p) { const e = ALL[p]; return NAMES[e.bi].toUpperCase() + ' ' + (e.ch + 1); }
+    function updateLabel() { const t = lbl(pos); headerTitle.textContent = t; document.title = t; }
+
+    // LOAD BOOK
+    async function loadBook(bi) {
+      const res = await fetch('./books/' + bi + '.json');
+      return await res.json();
     }
 
-    function updateLabel() {
-      const t = lbl(pos);
-      headerTitle.textContent = t;
-      document.title = t;
+    async function getVerses(p) {
+      if (p < 0 || p >= TOTAL) return null;
+      const e = ALL[p];
+      const book = await loadBook(e.bi);
+      return book[e.ch];
     }
 
     // NAV
@@ -103,12 +103,10 @@
         if (!el) return;
         const bi = parseInt(el.dataset.bi);
         const np = ALL.findIndex(a => a.bi === bi && a.ch === 0);
-        if (np >= 0) {
-          navOpen = false;
-          navView.style.display = 'none';
-          readingView.style.display = 'block';
-          if (np !== pos) { pos = np; buildPanels(); }
-        }
+        navOpen = false;
+        navView.style.display = 'none';
+        readingView.style.display = 'block';
+        if (np >= 0 && np !== pos) { pos = np; render(); }
       });
     }
 
@@ -133,13 +131,7 @@
       }
     }
 
-    // PANELS — all instant now, no async
-    function getVerses(p) {
-      if (p < 0 || p >= TOTAL || !BIBLE) return null;
-      const e = ALL[p];
-      return BIBLE[e.bi][e.ch];
-    }
-
+    // RENDER
     function panelHTML(verses) {
       if (!verses) return '<div class="chapter-scroll"></div>';
       let h = '<div class="chapter-scroll">';
@@ -148,17 +140,26 @@
       return h;
     }
 
-    function buildPanels() {
+    async function render() {
+      const cur = await getVerses(pos);
       track.innerHTML =
-        '<div class="ch-panel" data-slot="0">' + panelHTML(getVerses(pos - 1)) + '</div>' +
-        '<div class="ch-panel" data-slot="1">' + panelHTML(getVerses(pos)) + '</div>' +
-        '<div class="ch-panel" data-slot="2">' + panelHTML(getVerses(pos + 1)) + '</div>';
+        '<div class="ch-panel" data-slot="0"><div class="chapter-scroll"></div></div>' +
+        '<div class="ch-panel" data-slot="1">' + panelHTML(cur) + '</div>' +
+        '<div class="ch-panel" data-slot="2"><div class="chapter-scroll"></div></div>';
       track.style.transition = 'none';
       track.style.transform = 'translateX(-33.333%)';
       updateLabel();
+
+      // Prefetch neighbors (won't block render)
+      getVerses(pos - 1).then(v => {
+        const el = track.querySelector('[data-slot="0"]'); if (el) el.innerHTML = panelHTML(v);
+      });
+      getVerses(pos + 1).then(v => {
+        const el = track.querySelector('[data-slot="2"]'); if (el) el.innerHTML = panelHTML(v);
+      });
     }
 
-    function slideTo(dir) {
+    async function slideTo(dir) {
       const np = pos + dir;
       if (np < 0 || np >= TOTAL) {
         track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
@@ -167,7 +168,9 @@
       }
       track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
       track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
-      setTimeout(() => { pos = np; buildPanels(); }, 300);
+      await new Promise(r => setTimeout(r, 300));
+      pos = np;
+      await render();
     }
 
     // SWIPE
@@ -194,22 +197,10 @@
         track.style.transform='translateX(-33.333%)';}
     });
 
-    // SERVICE WORKER
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js');
-    }
-
     // INIT
     (async () => {
       buildNavOnce();
-      try {
-        const res = await fetch('./kjv.json');
-        BIBLE = await res.json();
-      } catch (e) {
-        loadingEl.textContent = 'Failed to load Bible data.';
-        return;
-      }
-      buildPanels();
+      await render();
       loadingEl.style.display = 'none';
       readingView.style.display = 'block';
     })();
