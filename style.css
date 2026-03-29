@@ -111,7 +111,18 @@ body {
   padding: 12px 56px 0 56px;
 }
 
-.verse { padding-bottom: 28px; }
+.verse {
+  padding-bottom: 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.verse:active { opacity: 0.4; }
+.verse-wrap { padding-bottom: 28px; }
+.insight {
+  display: none;
+  color: var(--text-muted);
+  padding-top: 8px;
+}
+.insight.open { display: block; }
 .bottom-spacer { height: 120px; flex-shrink: 0; }
 
 /* LOADING */

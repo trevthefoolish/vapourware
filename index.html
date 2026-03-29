@@ -154,10 +154,57 @@
     function fillPanel(panel, p) {
       const verses = (p !== null) ? getVerses(p) : null;
       if (!verses) { panel.innerHTML = '<div class="chapter-scroll"></div>'; return; }
+      const e = ALL[p];
       let h = '<div class="chapter-scroll">';
-      for (let i = 0; i < verses.length; i++) h += '<p class="verse">' + verses[i] + '</p>';
+      for (let i = 0; i < verses.length; i++) {
+        h += '<div class="verse-wrap" data-bi="' + e.bi + '" data-ch="' + e.ch + '" data-v="' + i + '">';
+        h += '<p class="verse" onclick="toggleInsight(this)">' + verses[i] + '</p>';
+        h += '<p class="insight"></p>';
+        h += '</div>';
+      }
       h += '<div class="bottom-spacer"></div></div>';
       panel.innerHTML = h;
+    }
+
+    // INSIGHT
+    const insightCache = {};
+
+    async function toggleInsight(el) {
+      const wrap = el.closest('.verse-wrap');
+      const insightEl = wrap.querySelector('.insight');
+
+      // If already showing, collapse
+      if (insightEl.classList.contains('open')) {
+        insightEl.classList.remove('open');
+        insightEl.textContent = '';
+        return;
+      }
+
+      const bi = wrap.dataset.bi;
+      const ch = wrap.dataset.ch;
+      const v = wrap.dataset.v;
+      const key = bi + ':' + ch + ':' + v;
+
+      // Check local cache
+      if (insightCache[key]) {
+        insightEl.textContent = insightCache[key];
+        insightEl.classList.add('open');
+        return;
+      }
+
+      // Show loading
+      insightEl.textContent = '...';
+      insightEl.classList.add('open');
+
+      try {
+        const res = await fetch('./api/insight/' + bi + '/' + ch + '/' + v);
+        const data = await res.json();
+        insightCache[key] = data.insight;
+        insightEl.textContent = data.insight;
+      } catch (e) {
+        insightEl.textContent = '';
+        insightEl.classList.remove('open');
+      }
     }
 
     function fillAllPanels() {
