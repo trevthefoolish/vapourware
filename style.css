@@ -54,16 +54,6 @@ body {
   }
 }
 
-/* HEADER */
-.header {
-  display: flex; align-items: baseline; gap: 20px;
-  padding: 40px 0 20px 0; width: 260px; margin: 0 auto; flex-shrink: 0;
-  cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
-}
-.header:active { opacity: 0.5; }
-.header-title { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.02em; }
-.header-sub { font-size: 14px; line-height: 20px; text-transform: uppercase; color: var(--text-muted); }
-
 /* READING */
 .reading-view { flex: 1; overflow: hidden; }
 .swipe-container { height: 100%; overflow: hidden; }
@@ -80,13 +70,27 @@ body {
 .chapter-scroll {
   height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  display: flex; flex-direction: column; align-items: center;
+  padding: 0 40px;
 }
-.chapter-scroll > .verse, .chapter-scroll > .bottom-spacer { width: 260px; }
+
+/* Header — inline with content, scrolls with it */
+.chapter-header {
+  padding: 40px 0 20px 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
+  display: flex; align-items: baseline; gap: 16px;
+}
+.chapter-header:active { opacity: 0.5; }
+.chapter-header-title {
+  font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.02em;
+}
+.chapter-header-sub {
+  font-size: 14px; line-height: 20px; text-transform: uppercase; color: var(--text-muted);
+}
+
 .verse {
-  font-size: 16px; line-height: 26px;
+  font-size: 14px; line-height: 22px;
   letter-spacing: 0.006em;
-  padding-bottom: 24px;
+  padding-bottom: 20px;
 }
 .bottom-spacer { height: 80px; flex-shrink: 0; }
 
@@ -101,14 +105,20 @@ body {
   display: none; flex: 1; overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  padding: 0 40px;
 }
-.nav-scroll { display: flex; justify-content: center; }
-.nav-inner { width: 260px; padding-bottom: 80px; }
+.nav-header {
+  padding: 40px 0 20px 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
+  display: flex; align-items: baseline; gap: 16px;
+}
+.nav-header:active { opacity: 0.5; }
 .nav-book {
   font-size: 14px; line-height: 20px; padding: 10px 0;
   cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
 }
 .nav-book:active { opacity: 0.5; }
 .nav-book.current { font-weight: 500; }
+.nav-end { height: 80px; }
 
 ::selection { background: rgba(27,18,18,0.15); }
